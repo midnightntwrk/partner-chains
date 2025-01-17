@@ -220,6 +220,10 @@ pub enum NetworkProtocol {
 	Http,
 	#[serde(rename = "https")]
 	Https,
+	#[serde(rename = "ws")]
+	Ws,
+	#[serde(rename = "wss")]
+	Wss,
 }
 
 impl NetworkProtocol {
@@ -233,6 +237,8 @@ impl std::fmt::Display for NetworkProtocol {
 		let str = match self {
 			NetworkProtocol::Http => "http".to_string(),
 			NetworkProtocol::Https => "https".to_string(),
+			NetworkProtocol::Ws => "ws".to_string(),
+			NetworkProtocol::Wss => "wss".to_string(),
 		};
 		write!(f, "{}", str)
 	}
@@ -242,11 +248,13 @@ impl FromStr for NetworkProtocol {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
+		match s.to_lowercase().as_str() {
 			"http" => Ok(NetworkProtocol::Http),
 			"https" => Ok(NetworkProtocol::Https),
+			"ws" => Ok(NetworkProtocol::Ws),
+			"wss" => Ok(NetworkProtocol::Wss),
 			other => {
-				Err(format!("Invalid security protocol {other}, please provide http or https"))
+				Err(format!("Invalid protocol {other}, please provide http, https, ws or wss"))
 			},
 		}
 	}
@@ -254,7 +262,12 @@ impl FromStr for NetworkProtocol {
 
 impl SelectOptions for NetworkProtocol {
 	fn select_options() -> Vec<String> {
-		vec![NetworkProtocol::Http.to_string(), NetworkProtocol::Https.to_string()]
+		vec![
+			NetworkProtocol::Http.to_string(),
+			NetworkProtocol::Https.to_string(),
+			NetworkProtocol::Ws.to_string(),
+			NetworkProtocol::Wss.to_string(),
+		]
 	}
 }
 
@@ -474,7 +487,7 @@ pub mod config_fields {
 		ConfigFieldDefinition {
 			config_file: RESOURCES_CONFIG_FILE_PATH,
 			path: &["ogmios", "protocol"],
-			name: "Ogmios protocol (http/https)",
+			name: "Ogmios protocol (http/https/ws/wss)",
 			default: Some("http"),
 			_marker: PhantomData,
 		};
