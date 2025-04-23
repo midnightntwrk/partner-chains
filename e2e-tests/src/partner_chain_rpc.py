@@ -87,27 +87,27 @@ class PartnerChainRpc:
             raise PartnerChainRpcException(str(e))
 
     def partner_chain_get_epoch_committee(self, epoch) -> PartnerChainRpcResponse:
-        json_data = self.__exec_rpc("sidechain_getEpochCommittee", [epoch])
+        json_data = self.__exec_rpc("pc_getEpochCommittee", [epoch])
         logger.debug(json_data)
         return PartnerChainRpcResponse.model_validate(json_data)
 
     def partner_chain_get_status(self) -> PartnerChainRpcResponse:
-        json_data = self.__exec_rpc("sidechain_getStatus")
+        json_data = self.__exec_rpc("pc_getStatus")
         logger.debug(json_data)
         return PartnerChainRpcResponse.model_validate(json_data)
 
     def partner_chain_get_ariadne_parameters(self, mc_epoch) -> PartnerChainRpcResponse:
-        json_data = self.__exec_rpc("sidechain_getAriadneParameters", [mc_epoch])
+        json_data = self.__exec_rpc("pc_getAriadneParameters", [mc_epoch])
         logger.debug(json_data)
         return PartnerChainRpcResponse.model_validate(json_data)
 
     def partner_chain_get_params(self) -> PartnerChainRpcResponse:
-        json_data = self.__exec_rpc("sidechain_getParams")
+        json_data = self.__exec_rpc("pc_getParams")
         logger.debug(json_data)
         return PartnerChainRpcResponse.model_validate(json_data)
 
     def partner_chain_get_registrations(self, mc_epoch, mc_key) -> PartnerChainRpcResponse:
-        json_data = self.__exec_rpc("sidechain_getRegistrations", [mc_epoch, mc_key])
+        json_data = self.__exec_rpc("pc_getRegistrations", [mc_epoch, mc_key])
         logger.debug(json_data)
         return PartnerChainRpcResponse.model_validate(json_data)
 

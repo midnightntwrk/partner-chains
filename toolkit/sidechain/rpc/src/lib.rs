@@ -25,11 +25,11 @@ pub mod mock;
 
 #[rpc(client, server, namespace = "sidechain")]
 pub trait SidechainRpcApi {
-	#[method(name = "getParams")]
+	#[method(name = "getParams", aliases = ["pc_getParams"])]
 	fn get_params(&self) -> RpcResult<sp_sidechain::query::Output>;
 
 	/// Returns data related to the status of both the main chain and the sidechain, like their epochs or the timestamp associated to the next epoch.
-	#[method(name = "getStatus")]
+	#[method(name = "getStatus", aliases = ["pc_getStatus"])]
 	async fn get_status(&self) -> RpcResult<GetStatusResponse>;
 }
 

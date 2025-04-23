@@ -13,14 +13,14 @@ use std::sync::Arc;
 #[rpc(client, server, namespace = "sidechain")]
 pub trait SessionValidatorManagementRpcApi {
 	/// Returns the committee for given sidechain epoch. The order of the list represents the order of slot allocation.
-	#[method(name = "getEpochCommittee")]
+	#[method(name = "getEpochCommittee", aliases = ["pc_getEpochCommittee"])]
 	fn get_epoch_committee(&self, epoch_number: u64) -> RpcResult<GetCommitteeResponse>;
 
 	///
 	/// returns: Last active and valid registration followed by all newer invalid registrations for mc_epoch_number and mc_public_key.
 	/// Regardless of `mc_epoch_number` value, it always uses validation api from the latest sidechain block.
 	///
-	#[method(name = "getRegistrations")]
+	#[method(name = "getRegistrations", aliases = ["pc_getRegistrations"])]
 	async fn get_registrations(
 		&self,
 		mc_epoch_number: McEpochNumber,
@@ -28,7 +28,7 @@ pub trait SessionValidatorManagementRpcApi {
 	) -> RpcResult<Vec<CandidateRegistrationEntry>>;
 
 	/// Regardless of `epoch_number` value, all the candidates data validation is done based on the validation api from the latest sidechain block.
-	#[method(name = "getAriadneParameters")]
+	#[method(name = "getAriadneParameters", aliases = ["pc_getAriadneParameters"])]
 	async fn get_ariadne_parameters(
 		&self,
 		epoch_number: McEpochNumber,

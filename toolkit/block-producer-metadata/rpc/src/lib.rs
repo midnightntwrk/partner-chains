@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 #[rpc(client, server, namespace = "block-producer-metadata")]
 pub trait BlockProducerMetadataRpcApi<Metadata> {
-	#[method(name = "getMetadata")]
+	#[method(name = "getMetadata", aliases = ["pc_getBlockProducerMetadata"])]
 	fn get_metadata(
 		&self,
 		cross_chain_public_key: CrossChainPublicKey,
