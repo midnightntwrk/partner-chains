@@ -14,6 +14,7 @@ This changelog is based on [Keep A Changelog](https://keepachangelog.com/en/1.1.
 * Added `valid_before` argument to the signed message and all extrinsics in `pallet_block_producer_metadata`. This is to
 prevent unauthorized re-submission of metadata updates. The `sign-block-producer-metadata` command was updated to
 match this change.
+* Added litep2p networking stack support to pc demo node as default. libp2p can be set with explicitly `--network-backend` parameter.
 
 ## Added
 
