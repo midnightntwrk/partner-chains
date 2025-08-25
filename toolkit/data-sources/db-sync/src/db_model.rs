@@ -71,7 +71,7 @@ impl DbSyncConfigurationProvider {
 			let tx_in_config = TxInConfiguration::from_connection(&self.pool).await?;
 			lock.set(tx_in_config).map_err(|_| {
 				DataSourceError::InternalDataSourceError(
-					"Failed to set tx_in_config in GovernedMapDataSourceImpl".into(),
+					"Failed to set tx_in_config in DbSyncConfigurationProvider".into(),
 				)
 			})?;
 			log::info!("Using configuration: {tx_in_config:?}");
