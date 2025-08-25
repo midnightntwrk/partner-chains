@@ -878,7 +878,7 @@ mod tests {
 
 	use super::TxInConfiguration;
 
-	#[sqlx::test(migrations = "./testdata/migrations-v1")]
+	#[sqlx::test(migrations = "./testdata/migrations-tx-in-enabled")]
 	async fn tx_in_configuration_is_enabled_if_tx_in_table_exists(pool: PgPool) {
 		let tx_in_config = TxInConfiguration::from_connection(&pool).await.unwrap();
 

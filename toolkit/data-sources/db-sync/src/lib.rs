@@ -99,7 +99,7 @@
 #![allow(rustdoc::private_intra_doc_links)]
 
 pub use crate::{
-	data_sources::{ConnectionConfig, PgPool, get_connection_from_env, read_mc_epoch_config},
+	data_sources::{ConnectionConfig, PgPool, get_connection_from_env},
 	metrics::{McFollowerMetrics, register_metrics_warn_errors},
 };
 
