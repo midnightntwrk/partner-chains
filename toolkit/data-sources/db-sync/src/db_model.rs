@@ -879,7 +879,7 @@ mod tests {
 	use super::TxInConfiguration;
 
 	#[sqlx::test(migrations = "./testdata/migrations-v1")]
-	async fn tx_in_configuration_is_legacy_if_tx_in_table_exists(pool: PgPool) {
+	async fn tx_in_configuration_is_enabled_if_tx_in_table_exists(pool: PgPool) {
 		let tx_in_config = TxInConfiguration::from_connection(&pool).await.unwrap();
 
 		assert_eq!(tx_in_config, TxInConfiguration::Enabled)
