@@ -870,7 +870,6 @@ ORDER BY block.block_no ASC;
 }
 
 #[cfg(test)]
-
 mod tests {
 	use sqlx::PgPool;
 
