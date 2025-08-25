@@ -26,7 +26,7 @@ macro_rules! with_migration_versions {
 					$name($pool, TxInConfiguration::Enabled).await
 				}
 
-				#[sqlx::test(migrations = "./testdata/migrations-v2")]
+				#[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
 				async fn [<$name _v2>]($pool: PgPool) {
 					$name($pool, TxInConfiguration::Consumed).await
 				}
