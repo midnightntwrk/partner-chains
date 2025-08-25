@@ -19,7 +19,7 @@ use tokio::sync::Mutex;
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub(crate) enum TxInConfiguration {
 	/// Transaction inputs are linked using `tx_in` table
-	Legacy,
+	Enabled,
 	/// Transaction inputs are linked using `consumed_by_tx_id` column in `tx_out` table
 	Consumed,
 }
@@ -41,7 +41,7 @@ impl TxInConfiguration {
 			.await?;
 
 		if tx_in_populated {
-			return Ok(Self::Legacy);
+			return Ok(Self::Enabled);
 		}
 
 		Ok(Self::Consumed)
@@ -443,8 +443,9 @@ pub(crate) async fn get_governed_map_changes(
 	tx_in_configuration: TxInConfiguration,
 ) -> Result<Vec<DatumChangeOutput>, SqlxError> {
 	match tx_in_configuration {
-		TxInConfiguration::Legacy => {
-			get_governed_map_changes_tx_in_legacy(pool, address, after_block, to_block, asset).await
+		TxInConfiguration::Enabled => {
+			get_governed_map_changes_tx_in_enabled(pool, address, after_block, to_block, asset)
+				.await
 		},
 		TxInConfiguration::Consumed => {
 			get_governed_map_changes_tx_in_consumed(pool, address, after_block, to_block, asset)
@@ -454,7 +455,7 @@ pub(crate) async fn get_governed_map_changes(
 }
 
 #[cfg(feature = "governed-map")]
-pub(crate) async fn get_governed_map_changes_tx_in_legacy(
+pub(crate) async fn get_governed_map_changes_tx_in_enabled(
 	pool: &Pool<Postgres>,
 	address: &Address,
 	after_block: Option<BlockNumber>,
@@ -559,8 +560,8 @@ pub(crate) async fn get_datums_at_address_with_token(
 	tx_in_configuration: TxInConfiguration,
 ) -> Result<Vec<DatumOutput>, SqlxError> {
 	match tx_in_configuration {
-		TxInConfiguration::Legacy => {
-			get_datums_at_address_with_token_tx_in_legacy(pool, address, block, asset).await
+		TxInConfiguration::Enabled => {
+			get_datums_at_address_with_token_tx_in_enabled(pool, address, block, asset).await
 		},
 		TxInConfiguration::Consumed => {
 			get_datums_at_address_with_token_tx_in_consumed(pool, address, block, asset).await
@@ -569,7 +570,7 @@ pub(crate) async fn get_datums_at_address_with_token(
 }
 
 #[cfg(feature = "governed-map")]
-pub(crate) async fn get_datums_at_address_with_token_tx_in_legacy(
+pub(crate) async fn get_datums_at_address_with_token_tx_in_enabled(
 	pool: &Pool<Postgres>,
 	address: &Address,
 	block: BlockNumber,
@@ -654,7 +655,9 @@ pub(crate) async fn get_utxos_for_address(
 	tx_in_configuration: TxInConfiguration,
 ) -> Result<Vec<MainchainTxOutput>, SqlxError> {
 	match tx_in_configuration {
-		TxInConfiguration::Legacy => get_utxos_for_address_tx_in_legacy(pool, address, block).await,
+		TxInConfiguration::Enabled => {
+			get_utxos_for_address_tx_in_enabled(pool, address, block).await
+		},
 		TxInConfiguration::Consumed => {
 			get_utxos_for_address_tx_in_consumed(pool, address, block).await
 		},
@@ -662,7 +665,7 @@ pub(crate) async fn get_utxos_for_address(
 }
 
 #[cfg(feature = "candidate-source")]
-pub(crate) async fn get_utxos_for_address_tx_in_legacy(
+pub(crate) async fn get_utxos_for_address_tx_in_enabled(
 	pool: &Pool<Postgres>,
 	address: &Address,
 	block: BlockNumber,
@@ -879,7 +882,7 @@ mod tests {
 	async fn tx_in_configuration_is_legacy_if_tx_in_table_exists(pool: PgPool) {
 		let tx_in_config = TxInConfiguration::from_connection(&pool).await.unwrap();
 
-		assert_eq!(tx_in_config, TxInConfiguration::Legacy)
+		assert_eq!(tx_in_config, TxInConfiguration::Enabled)
 	}
 
 	#[sqlx::test(migrations = false)]

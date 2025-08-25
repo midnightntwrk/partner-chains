@@ -36,7 +36,7 @@ macro_rules! with_migration_versions {
 
 				#[sqlx::test(migrations = "./testdata/governed-map/migrations-v1")]
 				async fn [<$name _v1>]($pool: PgPool) {
-					$name($pool, TxInConfiguration::Legacy).await
+					$name($pool, TxInConfiguration::Enabled).await
 				}
 
 				#[sqlx::test(migrations = "./testdata/governed-map/migrations-v2")]
