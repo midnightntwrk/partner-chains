@@ -34,7 +34,7 @@ macro_rules! with_migration_versions {
             paste::paste!(
 				async fn $name($pool: PgPool, $tx_in_cfg: TxInConfiguration) $body
 
-				#[sqlx::test(migrations = "./testdata/governed-map/migrations-v1")]
+				#[sqlx::test(migrations = "./testdata/governed-map/migrations-tx-in-enabled")]
 				async fn [<$name _v1>]($pool: PgPool) {
 					$name($pool, TxInConfiguration::Enabled).await
 				}
