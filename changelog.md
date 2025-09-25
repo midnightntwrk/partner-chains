@@ -62,6 +62,7 @@ block producer rewards on-chain. Handling of the transfers is left to the chain 
 * Added `CARDANO_DATA_SOURCE` env variable to determine data source for partner-chains. `db-sync` value is used by default
 * Added support for querying Db-Sync database when `tx-in.value` configuration field is set to `"consumed"`.
 The data sources will automatically detect this option on startup and adjust their queries accordingly.
+* Added `partner-chains-node smart-contracts upsert-script` command for inserting and updating versioned scripts.
 
 ## Fixed
 
