@@ -3,7 +3,7 @@
 //! This implementation has lag of one additional PC epoch when applying committees to sessions.
 //!
 //! To use it, wire [crate::Pallet] in runtime configuration of [`pallet_session`].
-use crate::{CommitteeMember, InputsChangeHandlingStage, InputsChangeHandlingStages};
+use crate::{CommitteeMember, CommitteeRotationStage, CommitteeRotationStages};
 use frame_support::traits::UnfilteredDispatchable;
 use frame_system::RawOrigin;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -32,21 +32,13 @@ where
 	/// Updates the session index of [`pallet_session`].
 	// Instead of Some((*).expect) we could just use (*). However, we rather panic in presence of important programming errors.
 	fn new_session(new_index: SessionIndex) -> Option<Vec<T::AccountId>> {
-		info!("Session manager: new_session {new_index}");
-		if InputsChangeHandlingStage::<T>::get() == InputsChangeHandlingStages::ShouldEndSessionDone
-		{
-			InputsChangeHandlingStage::<T>::put(InputsChangeHandlingStages::NewSessionDone);
-			let committee = crate::Pallet::<T>::current_committee_storage()
-				.committee
-				.iter()
-				.map(|member| member.authority_id().into())
-				.collect();
-			info!(
-				"Session manager: returning old committee without rotation to accelerate usage of the new selection inputs"
-			);
-			return Some(committee);
+		if CommitteeRotationStage::<T>::get() == CommitteeRotationStages::AdditionalSession {
+			info!("Session manager: new_session {new_index}, returning the current committee");
+			CommitteeRotationStage::<T>::put(CommitteeRotationStages::AwaitEpochChange);
+			let committee = crate::Pallet::<T>::current_committee_storage().committee;
+			return Some(committee.iter().map(|member| member.authority_id().into()).collect());
 		}
-
+		info!("Session manager: new_session {new_index}, rotating the committee");
 		let new_committee = crate::Pallet::<T>::rotate_committee_to_next_epoch().expect(
 			"Session should never end without current epoch validators defined. \
 				Check ShouldEndSession implementation or if it is used before starting new session",
@@ -105,7 +97,8 @@ where
 		let next_committee_is_defined = crate::Pallet::<T>::next_committee().is_some();
 		if current_epoch_number > current_committee_epoch {
 			if next_committee_is_defined {
-				info!("Session manager: should_end_session({n:?}) = true");
+				info!("Session manager: should_end_session({n:?}) = true, end in the next block");
+				CommitteeRotationStage::<T>::put(CommitteeRotationStages::NewSessionDueEpochChange);
 				true
 			} else {
 				warn!(
@@ -114,11 +107,10 @@ where
 				false
 			}
 		} else {
-			if InputsChangeHandlingStage::<T>::get() == InputsChangeHandlingStages::InputsChanged {
-				info!("Session manager: should_end_session({n:?}) = true, due inputs change");
-				InputsChangeHandlingStage::<T>::put(
-					InputsChangeHandlingStages::ShouldEndSessionDone,
-				);
+			let stage = CommitteeRotationStage::<T>::get();
+			if stage == CommitteeRotationStages::NewSessionDueEpochChange {
+				CommitteeRotationStage::<T>::put(CommitteeRotationStages::AdditionalSession);
+				info!("Session manager: should_end_session({n:?}) to force the new committee");
 				true
 			} else {
 				false

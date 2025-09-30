@@ -24,15 +24,15 @@ pub use sp_session_validator_management::CommitteeMember;
 pub use weights::WeightInfo;
 
 /// For session state machine
-#[derive(Encode, Decode, Default, MaxEncodedLen, TypeInfo, PartialEq, Eq)]
-pub enum InputsChangeHandlingStages {
-	/// Inputs has changed and special session should be created to accelerate usage of new inputs
-	InputsChanged,
-	/// Should end session returned true due selection inputs change
-	ShouldEndSessionDone,
-	/// Special session without committee rotation was executed
+#[derive(Encode, Decode, Default, Debug, MaxEncodedLen, TypeInfo, PartialEq, Eq)]
+pub enum CommitteeRotationStages {
+	/// No action is required until the current committee becomes obsolete
 	#[default]
-	NewSessionDone,
+	AwaitEpochChange,
+	/// Session ended because of epoch change
+	NewSessionDueEpochChange,
+	/// Session ended to accelerate use of validators queued in the previous block
+	AdditionalSession,
 }
 
 #[frame_support::pallet]
@@ -166,15 +166,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Stores hash of the most recent selection inputs that were used to select a committee
-	#[pallet::storage]
-	pub type LastInputsHash<T: Config> = StorageValue<_, [u8; 32], ValueQuery>;
-
 	/// Stores the stage of handling the inputs change. Use by session manager, to decide
 	/// if the session should be ended quickly, to speed up using the newly selected committee.
 	#[pallet::storage]
-	pub type InputsChangeHandlingStage<T: Config> =
-		StorageValue<_, InputsChangeHandlingStages, ValueQuery>;
+	pub type CommitteeRotationStage<T: Config> =
+		StorageValue<_, CommitteeRotationStages, ValueQuery>;
 
 	#[pallet::storage]
 	pub type MainChainScriptsConfiguration<T: Config> =
@@ -349,12 +345,6 @@ pub mod pallet {
 				epoch: for_epoch_number,
 				committee: validators,
 			});
-
-			let current_hash = LastInputsHash::<T>::get();
-			if current_hash != selection_inputs_hash.0 {
-				InputsChangeHandlingStage::<T>::put(InputsChangeHandlingStages::InputsChanged);
-				LastInputsHash::<T>::put(selection_inputs_hash.0);
-			}
 			Ok(())
 		}
 
@@ -453,7 +443,7 @@ pub mod pallet {
 			let validators = next_committee.committee.to_vec();
 			let len = validators.len();
 			info!(
-				"Committee rotated: Returning {len} validators, stored in epoch {}",
+				"Committee rotated: Returning {len} validators, stored for epoch {}",
 				next_committee.epoch
 			);
 			Some(validators)
