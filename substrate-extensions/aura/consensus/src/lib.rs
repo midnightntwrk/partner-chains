@@ -17,8 +17,10 @@
 // Additional modifications by Input Output Global, Inc.
 // Copyright (C) 2024, Input Output Global, Inc.
 
+mod authorities_tracker;
 pub mod import_queue;
 
+pub use authorities_tracker::AuthoritiesTracker;
 use futures::prelude::*;
 use parity_scale_codec::Codec;
 use sc_client_api::{BlockOf, backend::AuxStore};
@@ -227,7 +229,7 @@ where
 	}
 
 	fn aux_data(&self, header: &B::Header, _slot: Slot) -> Result<Self::AuxData, ConsensusError> {
-		authorities(
+		fetch_authorities_from_runtime(
 			self.client.as_ref(),
 			header.hash(),
 			*header.number() + 1u32.into(),
@@ -326,7 +328,7 @@ where
 	}
 }
 
-fn authorities<A, B, C>(
+fn fetch_authorities_from_runtime<A, B, C>(
 	client: &C,
 	parent_hash: B::Hash,
 	context_block_number: NumberFor<B>,
@@ -449,7 +451,7 @@ mod tests {
 	}
 
 	type AuraVerifier =
-		import_queue::AuraVerifier<PeersFullClient, AuthorityPair, TestCIDP, u64, ()>;
+		import_queue::AuraVerifier<PeersFullClient, AuthorityPair, TestCIDP, TestBlock, ()>;
 	type AuraPeer = Peer<(), PeersClient>;
 
 	#[derive(Default)]
