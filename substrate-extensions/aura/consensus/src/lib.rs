@@ -17,10 +17,10 @@
 // Additional modifications by Input Output Global, Inc.
 // Copyright (C) 2024, Input Output Global, Inc.
 
-mod authorities_tracker;
+//mod authorities_tracker;
 pub mod import_queue;
 
-pub use authorities_tracker::AuthoritiesTracker;
+//pub use authorities_tracker::AuthoritiesTracker;
 use futures::prelude::*;
 use parity_scale_codec::Codec;
 use sc_client_api::{BlockOf, backend::AuxStore};
@@ -229,7 +229,8 @@ where
 	}
 
 	fn aux_data(&self, header: &B::Header, _slot: Slot) -> Result<Self::AuxData, ConsensusError> {
-		fetch_authorities_from_runtime(
+		//fetch_authorities_from_runtime(
+		authorities(
 			self.client.as_ref(),
 			header.hash(),
 			*header.number() + 1u32.into(),
@@ -328,7 +329,8 @@ where
 	}
 }
 
-fn fetch_authorities_from_runtime<A, B, C>(
+//fn fetch_authorities_from_runtime<A, B, C>(
+fn authorities<A, B, C>(
 	client: &C,
 	parent_hash: B::Hash,
 	context_block_number: NumberFor<B>,
