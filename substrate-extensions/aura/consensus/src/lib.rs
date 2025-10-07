@@ -17,10 +17,10 @@
 // Additional modifications by Input Output Global, Inc.
 // Copyright (C) 2024, Input Output Global, Inc.
 
-//mod authorities_tracker;
+mod authorities_tracker;
 pub mod import_queue;
 
-//pub use authorities_tracker::AuthoritiesTracker;
+pub use authorities_tracker::AuthoritiesTracker;
 use futures::prelude::*;
 use parity_scale_codec::Codec;
 use sc_client_api::{BlockOf, backend::AuxStore};
@@ -329,7 +329,21 @@ where
 	}
 }
 
-//fn fetch_authorities_from_runtime<A, B, C>(
+fn fetch_authorities_from_runtime<A, B, C>(
+	client: &C,
+	parent_hash: B::Hash,
+	context_block_number: NumberFor<B>,
+	compatibility_mode: &CompatibilityMode<NumberFor<B>>,
+) -> Result<Vec<A>, ConsensusError>
+where
+	A: Codec + Debug,
+	B: BlockT,
+	C: ProvideRuntimeApi<B>,
+	C::Api: AuraApi<B, A>,
+{
+	authorities(client, parent_hash, context_block_number, compatibility_mode)
+}
+
 fn authorities<A, B, C>(
 	client: &C,
 	parent_hash: B::Hash,
