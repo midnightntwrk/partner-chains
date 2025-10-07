@@ -44,6 +44,19 @@
 //! governance authority and are crucial in ensuring the chain's security in initial phases of
 //! its existence
 //!
+//! # Observability parameters
+//!
+//! All input data used when selecting a committee of a Partner Chain is sourced from Cardano.
+//! To correctly identify it, each node needs access to the current values of:
+//! - `the registration validator address`, at which all registration UTXOs are located
+//! - `the D-Parameter minting policy`, whose tokens mark the UTXO containing D-Parameter value
+//! - `the permissioned candidate minting policy`, whose tokens mark the UTXO containing the
+//!   permissioned candidate list
+//!
+//! These values are stored in the pallet storage, ensuring that they're available for all nodes
+//! to use and agreed upon through the consensus mechanism, and can be updated using a governance
+//! level extrinsic [set_main_chain_scripts].
+//!
 //! # Usage
 //!
 //! ## Prerequisites
@@ -141,7 +154,7 @@
 //! 		input: AuthoritySelectionInputs,
 //! 		sidechain_epoch: ScEpochNumber,
 //! 	) -> Option<BoundedVec<Self::CommitteeMember, Self::MaxValidators>> {
-//! 		select_authorities::<CrossChainPublic, SessionKeys, MaxValidators>(
+//! 		authority_selection_inherents::select_authorities::<CrossChainPublic, SessionKeys, MaxValidators>(
 //! 			Sidechain::genesis_utxo(),
 //! 			input,
 //! 			sidechain_epoch,
