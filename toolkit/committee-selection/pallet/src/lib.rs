@@ -157,7 +157,7 @@
 //! One value that needs to be decided upon by the chain builder is `MaxValidators` which dictates
 //! the maximum size of a committee. This value should be higher than the P + R of the D-Parameter
 //! used and should be adjusted accordingly before any D-Parameter changes that would exceed the
-//! previous value. In case a committee selected is bigger than `MaxValidators`, it will betruncated,
+//! previous value. In case a committee selected is bigger than `MaxValidators`, it will be truncated,
 //! potentially leading to a skewed seat allocation and threatening the security of the consensus.
 //!
 //! ## Genesis configuration
@@ -202,7 +202,31 @@
 //! values and at least one initial authority (block producer) must be provided by the genesis config.
 //!
 //!
+//! ## Updating pallet configuration
+//!
+//! ### MaxValidators
+//!
+//! The maximum number of committee seats. As this value is not typically expected to change, it is
+//! configured as part of the pallet's [Config]. This means that it can only be updated as part of a
+//! runtime upgrade. The chain builder should release a new runtime version with this value updated
+//! and the Partner Chain's governance mechanism should be used to apply it using [set_code].
+//!
+//! ### Main chain scripts
+//!
+//! The main chain scripts can change over time as the Partner Chain migrates to new versions of the
+//! Patner Chain smart contracts, either due to bug fixes or new features being released. This is
+//! necessary, because the script addresses are derived by hashing their Plutus code and are affected
+//! by any change made to it.
+//!
+//! The scripts are updated by invoking the [set_main_chain_scripts] extrinsic using the Partner Chain's
+//! governance mechanism.
+//!
+//! *Important*: Setting incorrect main chain script values will result in stalling block production
+//!              indefinitely, requiring a network-wide roll-back. As such, main chain scripts update
+//!              should be carried out with special care.
+//!
 //! [SessionManager]: pallet_session::SessionManager
+//! [set_code]: frame_system::Pallet::set_code
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity)]
