@@ -5,7 +5,10 @@
 //! This pallet provides a mechanism to rotate Partner Chain's block producing committees
 //! based on candidate registrations and chain configuration sourced from Cardano. It works
 //! by integrating with stock Substrate `pallet_session` as a [SessionManager] to provide it
-//! with committee information and to rotate sessions.
+//! with committee information and to rotate sessions. In addition to managing the sessions,
+//! the pallet automatically registers session keys of all active block producers, alleviating
+//! the need for manual key registration, and ensures that all necessary chain-local accounts
+//! exist.
 //!
 //! # Committee selection overview
 //!
@@ -77,36 +80,127 @@
 //! }
 //! ```
 //!
-//! In addition to
-//!
+//! In addition to the session keys, the runtime needs to define an ECDSA key type to represent
+//! the `cross-chain key`:
 //! ```rust
 //! pub mod cross_chain_app {
 //!     use sp_runtime::KeyTypeId;
 //!     use sp_runtime::app_crypto::{ app_crypto, ecdsa };
-//!
 //!     pub const CROSS_CHAIN: KeyTypeId = KeyTypeId(*b"crch");
-//!
 //! 	app_crypto!(ecdsa, CROSS_CHAIN);
 //! }
 //! pub type CrossChainPublic = cross_chain_app::Public;
 //! ```
 //!
-//! *Important*: It is recommended that when `pallet_session` is wired into the runtime, its
-//! extrinsics are hidden, using `exclude_parts` like so:
-//! ```rust,ignore
+//! This key serves as the identity of a Partner Chain user across all chains in the ecosystem.
+//!
+//! ### Adding the pallet
+//!
+//! The pallet should be added to the runtime _before_ `pallet_session`, but after the consensus
+//! pallets used by the chain:
+//!
+//! ```rust, ignore
 //! construct_runtime!(
 //! 	pub struct Runtime {
 //! 		System: frame_system,
+//! 		Timestamp: pallet_timestamp,
+//! 		Aura: pallet_aura,
+//! 		Grandpa: pallet_grandpa,
+//! 		Sidechain: pallet_sidechain,
 //! 		SessionCommitteeManagement: pallet_session_validator_management,
-//!         // ..other pallets
 //! 		Session: pallet_session exclude_parts { Call },
-//!     }
-//! };
+//!         // ... other pallets
+//! 	}
+//! );
 //! ```
-//! This ensures that chain users can't manually register their keys in the pallet and so the
-//! registrations done on Cardano remain the sole source of truth about key ownership.
+//!
+//! *Important*:
+//! It is recommended that when `pallet_session` is wired into the runtime, its extrinsics are
+//! hidden, using `exclude_parts` like in the example above. This ensures that chain users can't
+//! manually register their keys in the pallet and so the registrations done on Cardano remain
+//! the sole source of truth about key ownership. Proper operation in presence of manually set
+//! user keys is not guaranteed by the toolkit and its behavior is left unspecified.
+//!
+//! ### Configuring the pallet
+//!
+//! Configuring the pallet is straightforward and mostly consists of passing to it types already
+//! defined by other crates and in previous steps:
+//!
+//! ```rust, ignore
+//! impl pallet_session_validator_management::Config for Runtime {
+//! 	type MaxValidators = MaxValidators;
+//! 	type AuthorityId = CrossChainPublic;
+//! 	type AuthorityKeys = SessionKeys;
+//! 	type AuthoritySelectionInputs = authority_selection_inherents::AuthoritySelectionInputs;
+//! 	type ScEpochNumber = sidechain_domain::ScEpochNumber;
+//! 	type WeightInfo = pallet_session_validator_management::weights::SubstrateWeight<Runtime>;
+//! 	type CommitteeMember = authority_selection_inherents::CommitteeMember<CrossChainPublic, SessionKeys>;
+//! 	type MainChainScriptsOrigin = EnsureRoot<Self::AccountId>;
+//!
+//! 	fn select_authorities(
+//! 		input: AuthoritySelectionInputs,
+//! 		sidechain_epoch: ScEpochNumber,
+//! 	) -> Option<BoundedVec<Self::CommitteeMember, Self::MaxValidators>> {
+//! 		select_authorities::<CrossChainPublic, SessionKeys, MaxValidators>(
+//! 			Sidechain::genesis_utxo(),
+//! 			input,
+//! 			sidechain_epoch,
+//! 		)
+//! 	}
+//!
+//! 	fn current_epoch_number() -> ScEpochNumber {
+//! 		Sidechain::current_epoch_number()
+//! 	}
+//! }
+//! ```
+//!
+//! One value that needs to be decided upon by the chain builder is `MaxValidators` which dictates
+//! the maximum size of a committee. This value should be higher than the P + R of the D-Parameter
+//! used and should be adjusted accordingly before any D-Parameter changes that would exceed the
+//! previous value. In case a committee selected is bigger than `MaxValidators`, it will betruncated,
+//! potentially leading to a skewed seat allocation and threatening the security of the consensus.
 //!
 //! ## Genesis configuration
+//!
+//! Genesis config can be created programmatically:
+//!
+//! ```rust,ignore
+//! GenesisConfig {
+//! 	initial_authorities: vec![
+//!        CommitteeMember::permissioned(cross_chain_pubkey_1, session_keys_1),
+//!     ],
+//! 	main_chain_scripts: MainChainScripts::read_from_env()?,
+//! }
+//! ```
+//!
+//! However, it is more typical for production chains to define their specs using Json. In that case
+//! an example configuration could look like this:
+//!
+//! ```json
+//! {
+//!   "initialAuthorities": [
+//!     {
+//!       "Permissioned": {
+//!         "id": "KW39r9CJjAVzmkf9zQ4YDb2hqfAVGdRqn53eRqyruqpxAP5YL",
+//!         "keys": {
+//!           "aura": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+//!           "grandpa": "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu"
+//!         }
+//!       }
+//!     }
+//!   ],
+//!   "mainChainScripts": {
+//!     "committee_candidate_address": "addr_test1wrp8p2c5h7encl55gv26d5fpz9r99jxjcm0rxgny3993dxs2xy42p",
+//!     "d_parameter_policy_id": "0x434dc797fd036b0b654c005551ec08f39d25fa7f0eecdf4b170d46cf",
+//!     "permissioned_candidates_policy_id": "0xe1ce5d1b8b3e93a7493ecc11556790f915aabbc44a56b0b5145770b2"
+//!   }
+//! }
+//! ```
+//!
+//! *Important*:
+//! Notice, that since the pallet's operation is necessary for block production, all main chain script
+//! values and at least one initial authority (block producer) must be provided by the genesis config.
+//!
 //!
 //! [SessionManager]: pallet_session::SessionManager
 
