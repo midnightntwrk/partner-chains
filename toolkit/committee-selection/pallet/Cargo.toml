@@ -33,6 +33,7 @@ frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
+sp-runtime = { workspace = true, default-features = true }
 
 [features]
 default = ["std"]

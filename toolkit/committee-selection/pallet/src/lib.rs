@@ -1,4 +1,95 @@
-//!  Pallet for setting the Partner Chain validators using inherent data
+//! Pallet for setting the Partner Chain validators using inherent data
+//!
+//! # Purpose of the pallet
+//!
+//! This pallet provides a mechanism to rotate Partner Chain's block producing committees
+//! based on candidate registrations and chain configuration sourced from Cardano. It works
+//! by integrating with stock Substrate `pallet_session` as a [SessionManager] to provide it
+//! with committee information and to rotate sessions.
+//!
+//! # Committee selection overview
+//!
+//! Committees are selected for sessions corresponding roughly to Partner Chain epochs, whose
+//! duration is configurable for each Partner Chain. Due to the way session rotation works in
+//! `pallet_session`, these sessions are delayed by *2 blocks* relative to their respective
+//! epoch.
+//!
+//! Committees are selected based on the following inputs sourced from Cardano:
+//! - `Registered candidates`:
+//!   Cardano SPOs who have registered themselves as willing to participate as block producers.
+//!   These candidates need to control an ADA stake pool to be eligible for selection to a
+//!   committee, and their chance at securing a seat is proportional to their pool's size.
+//!   This candidate group corresponds to a typical "trustless" Proof of Stake block producers.
+//! - `Permissioned candidates`:
+//!   A list of trusted block producers that do not need to register themselves or control any
+//!   ADA stake on Cardano to be eligible for a Partner Chain committee.
+//!   This candidate group serves a special role as trusted block producers during initial phase
+//!   of a Partner Chain's lifetime (when there may not be enough registered candidates to ensure
+//!   proper security and decentralization of the network), and are intended to be phased out as
+//!   the number of trustless participants grows.
+//! - `D-Parameter`:
+//!   A pair of two values `R` and `P`, controlling the number of committee seats alloted for
+//!   registered and permissioned candidates respectively, which means that a committee has R+P
+//!   seats overall. This parameter gives the Partner Chain the ability to bootstrap itself using
+//!   an initial pool of permissioned candidates running trusted nodes, and then gradually shift
+//!   to registered (trustless) candidates when proper decentralization is achieved
+//! - `randomness seed`:
+//!   All randomness when selecting the committee is seeded from data sourced from Cardano so that
+//!   it is tamper-proof and agreed upon by all nodes.
+//!
+//! The permissioned candidate list and the D-Parameter are controlled by the Partner Chain's
+//! governance authority and are crucial in ensuring the chain's security in initial phases of
+//! its existence
+//!
+//! # Usage
+//!
+//! ## Prerequisites
+//!
+//! This pallet's operation requires the appropriate inherent data provider and data source
+//! be present in the node. As this pallet is crucial for the operation of the chain itself,
+//! these must be present before at the chain start or before the pallet is migrated to, to
+//! avoid down time. See documentation of `sp_session_validator_management` for information
+//! on how to add the IDP to your node. A Db-Sync-based data source implementation is provided
+//! by the `partner_chains_db_sync_data_sources` crate.
+//!
+//! Aside from the node components, the pallet requires the Partner Chain smart contracts to
+//! have been initialized on Cardano and that at least one candidate - either a registered or
+//! permissioned one - exists. See `docs/user-guides/governance/governance.md` and
+//! `docs/user-guides/chain-builder.md` for more information about governance and how to set
+//! up the Partner Chain on Cardano.
+//!
+//! ## Adding into the runtime
+//!
+//! ### Defining key types
+//!
+//! As with a stock Substrate chain, a Partner Chain needs to define its session keys. What
+//! these keys are depends on the consensus mechanisms used by the chain. For a Partner Chain
+//! using Aura as its consensus with a Grandpa finality gadget, the session keys can be defined
+//! as following:
+//!
+//! ```rust, ignore
+//! sp_runtime::impl_opaque_keys! {
+//! 	#[derive(MaxEncodedLen, PartialOrd, Ord)]
+//! 	pub struct SessionKeys {
+//! 		pub aura: Aura
+//! 		pub grandpa: Grandpa,
+//! 	}
+//! }
+//! ```
+//!
+//! In addition to
+//!
+//! ```rust
+//! pub mod cross_chain_app {
+//!     use sp_runtime::KeyTypeId;
+//!     use sp_runtime::app_crypto::{ app_crypto, ecdsa };
+//!
+//!     pub const CROSS_CHAIN: KeyTypeId = KeyTypeId(*b"crch");
+//!
+//! 	app_crypto!(ecdsa, CROSS_CHAIN);
+//! }
+//! pub type CrossChainPublic = cross_chain_app::Public;
+//! ```
 //!
 //! *Important*: It is recommended that when `pallet_session` is wired into the runtime, its
 //! extrinsics are hidden, using `exclude_parts` like so:
@@ -14,6 +105,10 @@
 //! ```
 //! This ensures that chain users can't manually register their keys in the pallet and so the
 //! registrations done on Cardano remain the sole source of truth about key ownership.
+//!
+//! ## Genesis configuration
+//!
+//! [SessionManager]: pallet_session::SessionManager
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity)]
