@@ -32,9 +32,10 @@ impl std::str::FromStr for DataSourceType {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s.to_lowercase().as_str() {
-			"db-sync" => Ok(DataSourceType::DbSync),
+			// just for easy testing in CI, do not merge
+			"db-sync" => Ok(DataSourceType::Dolos),
 			"mock" => Ok(DataSourceType::Mock),
-			"dolos" => Ok(DataSourceType::Dolos),
+			"dolos" => Ok(DataSourceType::DbSync),
 			_ => {
 				Err(format!("Invalid data source type: {}. Valid options: db-sync, mock, dolos", s))
 			},
