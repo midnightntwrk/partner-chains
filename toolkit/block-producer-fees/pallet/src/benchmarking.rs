@@ -22,7 +22,7 @@ mod benchmarks {
 
 	// Pessimistic storage for the ID
 	fn setup_storage<T: Config>() {
-		let size = T::HistoricalChangesPerProducer::get();
+		let size = T::HistoricalChangesPerProducer::get() + 1;
 		// Pessimistic storage content for is full, because it requires additional removal from the vecdeque.
 		let data = (0..size).into_iter().map(|_| (Slot::from(0), 0u16)).collect::<VecDeque<_>>();
 		for i in 0u8..100u8 {
