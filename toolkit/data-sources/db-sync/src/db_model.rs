@@ -964,7 +964,7 @@ pub(crate) async fn get_bridge_txs(
 	);
 
 	let inputs_subquery = match tx_in_configuration {
-		TxInConfiguration::Consumed => format!(
+		TxInConfiguration::Consumed => {
 			"
 			SELECT
 				  tx_out.consumed_by_tx_id  AS consuming_tx_id
@@ -974,8 +974,8 @@ pub(crate) async fn get_bridge_txs(
 			LEFT JOIN ma_tx_out ON ma_tx_out.tx_out_id = tx_out.id
 			WHERE tx_out.address = $1
 		"
-		),
-		TxInConfiguration::Enabled => format!(
+		},
+		TxInConfiguration::Enabled => {
 			"
 			SELECT
                   tx_in.tx_in_id         AS consuming_tx_id
@@ -986,7 +986,7 @@ pub(crate) async fn get_bridge_txs(
 			LEFT JOIN tx_in     ON tx_in.tx_out_id = tx_out.tx_id and tx_in.tx_out_index = tx_out.index
 			WHERE tx_out.address = $1
 		"
-		),
+		},
 	};
 
 	let mut query_builder = QueryBuilder::new(&format!("

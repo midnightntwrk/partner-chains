@@ -249,7 +249,7 @@ impl CachedTokenBridgeDataSourceImpl {
 		tx_hash: &McTxHash,
 	) -> Result<ResolvedBridgeDataCheckpoint, Box<dyn Error + Send + Sync>> {
 		let TxBlockInfo { block_number, tx_ix } =
-			get_block_info_for_tx_hash(&self.pool, tx_hash.clone().into())
+			get_block_info_for_tx_hash(&self.pool, (*tx_hash).into())
 				.await?
 				.ok_or(format!("Could not find block info for tx: {tx_hash:?}"))?;
 		Ok(ResolvedBridgeDataCheckpoint::Tx { block_number, tx_ix })
