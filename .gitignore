@@ -48,3 +48,6 @@ ogmios_client.log
 
 # e2e tests (Python)
 venv
+
+# Mempool benchmark results
+e2e-tests/utils/mempool_benchmarks/results/
