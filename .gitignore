@@ -45,9 +45,3 @@ dev/local-environment-dynamic/runtime-values/*
 dev/local-environment-dynamic/configurations/partner-chains-nodes/*
 
 ogmios_client.log
-
-# e2e tests (Python)
-venv
-
-# Mempool benchmark results
-e2e-tests/utils/mempool_benchmarks/results/

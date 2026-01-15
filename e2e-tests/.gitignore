@@ -8,3 +8,12 @@ reports
 logs/
 .vscode/settings.json
 my_env/
+
+# Toolkit database
+toolkit.db
+
+# Mempool benchmark results
+utils/mempool_benchmarks/results/
+
+# Block size benchmark logs
+utils/block_size_benchmarks/logs/

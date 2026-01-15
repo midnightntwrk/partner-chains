@@ -37,7 +37,7 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, verbose=False, max_w
         cmd = [
             toolkit_path, "generate-txs", "send",
             "--src-file", abs_tx_file,
-            "--fetch-cache", "inmemory",
+            # "--fetch-cache", "inmemory",
             "--dest-url", dest_url
         ]
 
@@ -100,7 +100,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     start_time = time.time()
     # 1. Find all matching files
     all_files = glob.glob(os.path.join("txs", "tx_*.mn"))
-    
+
     files = []
     if args.start is not None and args.end is not None:
         for f in all_files:
