@@ -296,18 +296,19 @@ def generate_report(events: List[MempoolEvent]) -> str:
         pruned_str = str(event.pruned_count) if event.pruned_count is not None else "N/A"
         reverified_str = str(event.reverified_txs) if event.reverified_txs is not None else "N/A"
         
-        # Skip rows where all data columns are N/A
-        all_na = all([
-            ready_str == "N/A",
-            future_str == "N/A",
-            mempool_str == "N/A",
-            submitted_str == "N/A",
-            validated_str == "N/A",
-            revalidated_str == "N/A",
-            pruned_str == "N/A",
-            reverified_str == "N/A"
+        # Skip rows where all data columns are N/A or 0 (no meaningful data)
+        # Check if any column has a non-zero, non-N/A value
+        has_meaningful_data = any([
+            ready_str != "N/A" and event.ready > 0,
+            future_str != "N/A" and event.future > 0,
+            mempool_str != "N/A" and event.mempool_len is not None and event.mempool_len > 0,
+            submitted_str != "N/A" and event.submitted_count is not None and event.submitted_count > 0,
+            validated_str != "N/A" and event.validated_count is not None and event.validated_count > 0,
+            revalidated_str != "N/A" and event.revalidated is not None and event.revalidated > 0,
+            pruned_str != "N/A" and event.pruned_count is not None and event.pruned_count > 0,
+            reverified_str != "N/A" and event.reverified_txs is not None and event.reverified_txs > 0
         ])
-        if all_na:
+        if not has_meaningful_data:
             continue
         
         report_lines.append(

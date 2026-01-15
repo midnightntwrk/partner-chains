@@ -63,14 +63,6 @@ Examples:
     --config ../../secrets/substrate/performance/performance.json \\
     --from-time "2026-01-08T10:00:00Z" \\
     --to-time "2026-01-08T10:10:00Z"
-
-  # Custom time window for analysis (500ms instead of default 1s)
-  python3 run_mempool_benchmark.py \\
-    --node charlie \\
-    --config config.json \\
-    --from-time "2026-01-08T10:00:00Z" \\
-    --to-time "2026-01-08T10:10:00Z" \\
-    --window 500
         """
     )
 
@@ -90,8 +82,8 @@ Examples:
                        help="End time in ISO 8601 format (e.g., '2026-01-08T10:10:00Z')")
 
     # Analysis options
-    parser.add_argument("--window", type=int, default=1000,
-                       help="Time window in milliseconds for analysis (default: 1000ms)")
+    parser.add_argument("--window", type=int, default=None,
+                       help="Time window in milliseconds for analysis (default: auto-calculated from time range)")
     parser.add_argument("--output-dir", default=".",
                        help="Output directory for all files (default: current directory)")
 
@@ -109,6 +101,16 @@ Examples:
 
     script_dir = Path(__file__).parent.resolve()
 
+    # Calculate window if not provided
+    if args.window is None:
+        # Parse time range to calculate total duration
+        start = datetime.fromisoformat(args.start_time.replace('Z', '+00:00'))
+        end = datetime.fromisoformat(args.end_time.replace('Z', '+00:00'))
+        duration_seconds = (end - start).total_seconds()
+        # Use 1 second window as default for all durations
+        args.window = 1000
+        print(f"\nAuto-calculated window: {args.window}ms for {duration_seconds:.0f}s duration")
+
     print(f"\n{'#'*60}")
     print(f"# MEMPOOL BENCHMARK RUNNER")
     print(f"{'#'*60}")
@@ -121,7 +123,7 @@ Examples:
     # Step 1: Download logs
     if not args.skip_download:
         download_cmd = [
-            "python3",
+            sys.executable,
             str(script_dir / "../download_logs.py"),
             "--node", args.node,
             "--from-time", args.start_time,
@@ -166,7 +168,7 @@ Examples:
     # Step 2: Extract metrics
     if not args.skip_extract:
         extract_cmd = [
-            "python3",
+            sys.executable,
             str(script_dir / "extractor.py"),
             args.node
         ]
@@ -192,7 +194,7 @@ Examples:
     analysis_file = log_dir / f"mempool_analysis_{timestamp}.txt"
 
     analyze_cmd = [
-        "python3",
+        sys.executable,
         str(script_dir / "analyzer.py"),
         "mempool_report.txt",
         str(analysis_file.name),
