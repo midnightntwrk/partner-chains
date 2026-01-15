@@ -37,7 +37,7 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, verbose=False, max_w
         cmd = [
             toolkit_path, "generate-txs", "send",
             "--src-file", abs_tx_file,
-            "--fetch-cache", "inmemory",
+            # "--fetch-cache", "inmemory",
             "--dest-url", dest_url
         ]
 
