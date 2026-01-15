@@ -291,16 +291,47 @@ def main():
         print(f"Processing node: {node}...")
         query = f'{{{args.label}="{node}"}}'
         output_filename = output_dir / f"{node}.txt"
+        temp_filename = output_dir / f"{node}.txt.tmp"
+        sorted_filename = output_dir / f"{node}.txt.sorted"
         
         count = 0
         try:
-            with open(output_filename, 'w', encoding='utf-8') as f:
-                for _, line in query_loki(url, query, start_ns, end_ns, headers=headers):
-                    f.write(line + "\n")
+            # Write logs to temporary file with timestamps
+            with open(temp_filename, 'w', encoding='utf-8') as f:
+                for ts, line in query_loki(url, query, start_ns, end_ns, headers=headers):
+                    f.write(f"{ts}|{line}\n")
                     count += 1
+            
+            # Sort using external sort command (memory efficient)
+            # -n: numeric sort, -t|: field separator, -k1,1: sort by first field
+            sort_result = subprocess.run(
+                ['sort', '-n', '-t|', '-k1,1', str(temp_filename)],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            # Write sorted output, removing timestamp prefix
+            with open(output_filename, 'w', encoding='utf-8') as f:
+                for line in sort_result.stdout.splitlines():
+                    if '|' in line:
+                        _, content = line.split('|', 1)
+                        f.write(content + "\n")
+            
+            # Remove temporary file
+            temp_filename.unlink()
+            
             print(f"  Saved {count} lines to {output_filename}")
+        except subprocess.CalledProcessError as e:
+            print(f"  Error sorting logs for node {node}: {e}")
+            # Clean up temp file on error
+            if temp_filename.exists():
+                temp_filename.unlink()
         except Exception as e:
             print(f"  Error processing node {node}: {e}")
+            # Clean up temp file on error
+            if temp_filename.exists():
+                temp_filename.unlink()
 
 if __name__ == "__main__":
     main()
