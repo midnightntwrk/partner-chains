@@ -176,7 +176,7 @@ def main():
     
     parser.add_argument("--label", default="host", help="Loki label to filter by (default: host)")
     parser.add_argument("--header", action='append', help="Custom header 'Key: Value'. Can be used multiple times (overrides config file).")
-    parser.add_argument("--output-dir", dest="output_dir", default="logs", help="Base output directory for log files (default: logs)")
+    parser.add_argument("--output-dir", dest="output_dir", default=None, help="Base output directory for log files (default: script directory/logs)")
     
     args = parser.parse_args()
     
@@ -222,18 +222,37 @@ def main():
         nodes = DEFAULT_NODES
         print(f"No nodes specified, using default list: {', '.join(nodes)}")
     
-    # Generate timestamp for the run
-    run_timestamp = datetime.now(timezone.utc).strftime("%Y_%m_%d_%H_%M_%S")
+    # Generate folder name based on date range
+    # Parse times to create a readable folder name
+    try:
+        start_dt = datetime.fromisoformat(args.start_time.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(args.end_time.replace('Z', '+00:00'))
+        # Format: from_YYYY-MM-DD_HH-MM-SS_to_YYYY-MM-DD_HH-MM-SS
+        start_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
+        end_str = end_dt.strftime("%Y-%m-%d_%H-%M-%S")
+        date_range_folder = f"from_{start_str}_to_{end_str}"
+    except Exception as e:
+        print(f"Error parsing time range for folder name: {e}")
+        # Fallback to simple names
+        start_str = args.start_time.replace(':', '-').replace('T', '_')
+        end_str = args.end_time.replace(':', '-').replace('T', '_')
+        date_range_folder = f"from_{start_str}_to_{end_str}"
     
-    # Create timestamped output directory
-    base_output_dir = Path(args.output_dir)
-    output_dir = base_output_dir / run_timestamp
+    # Determine base output directory (default to script directory/logs)
+    if args.output_dir:
+        base_output_dir = Path(args.output_dir)
+    else:
+        script_dir = Path(__file__).parent
+        base_output_dir = script_dir / "logs"
+    
+    # Create date-range based output directory
+    output_dir = base_output_dir / date_range_folder
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output directory: {output_dir}")
     
     # Create log_run_details file with command parameters
     run_details = {
-        "run_timestamp": run_timestamp,
+        "date_range_folder": date_range_folder,
         "start_time": args.start_time,
         "end_time": args.end_time,
         "nodes": nodes,
@@ -253,7 +272,22 @@ def main():
     print(f"Downloading logs from {url}")
     print(f"Time range: {args.start_time} to {args.end_time}")
     
+    # Check which nodes need to be downloaded
+    nodes_to_download = []
     for node in nodes:
+        output_filename = output_dir / f"{node}.txt"
+        if output_filename.exists():
+            print(f"Skipping node: {node} (file already exists: {output_filename})")
+        else:
+            nodes_to_download.append(node)
+    
+    if not nodes_to_download:
+        print("\nAll log files already exist. No downloads needed.")
+        return
+    
+    print(f"\nNodes to download: {', '.join(nodes_to_download)}\n")
+    
+    for node in nodes_to_download:
         print(f"Processing node: {node}...")
         query = f'{{{args.label}="{node}"}}'
         output_filename = output_dir / f"{node}.txt"

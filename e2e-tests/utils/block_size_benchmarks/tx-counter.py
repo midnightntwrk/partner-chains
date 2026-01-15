@@ -5,6 +5,7 @@ import subprocess
 import argparse
 from pathlib import Path
 import json
+from datetime import datetime
 
 def count_block_transactions(file_path):
     """
@@ -35,7 +36,7 @@ def count_block_transactions(file_path):
         print(f"❌ An error occurred: {e}")
         return set()
 
-def download_logs(from_time, to_time, nodes, header, url, output_dir="logs"):
+def download_logs(from_time, to_time, nodes, config, header, url):
     """
     Calls the download_logs.py script to download logs for specified nodes.
     Returns the path to the directory containing the downloaded logs.
@@ -47,55 +48,68 @@ def download_logs(from_time, to_time, nodes, header, url, output_dir="logs"):
         sys.exit(1)
     
     cmd = [
-        "python3",
+        sys.executable,
         str(download_script),
         "--from-time", from_time,
-        "--to-time", to_time,
-        "--output-dir", output_dir
+        "--to-time", to_time
     ]
     
-    # Add nodes
-    for node in nodes:
-        cmd.extend(["--node", node])
-    
-    # Add header if provided
-    if header:
-        cmd.extend(["--header", header])
+    # Add config if provided
+    if config:
+        cmd.extend(["--config", config])
     
     # Add URL if provided
     if url:
         cmd.extend(["--url", url])
     
+    # Add nodes
+    if nodes:
+        for node in nodes:
+            cmd.extend(["--node", node])
+    
+    # Add headers if provided
+    if header:
+        for h in header:
+            cmd.extend(["--header", h])
+    
     print(f"Downloading logs...")
-    print(f"Command: {' '.join(cmd)}")
+    print(f"Running: {' '.join(cmd)}\n")
     
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         print(result.stdout)
         
-        # Parse the output to find the timestamped directory
-        # The download script prints: "Output directory: {output_dir}"
-        output_lines = result.stdout.split('\n')
-        log_dir = None
-        for line in output_lines:
-            if line.startswith("Output directory:"):
-                log_dir = Path(line.split(":", 1)[1].strip())
-                break
+        # Construct expected directory name based on date range
+        # This matches the logic in download_logs.py
+        try:
+            start_dt = datetime.fromisoformat(from_time.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(to_time.replace('Z', '+00:00'))
+            start_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
+            end_str = end_dt.strftime("%Y-%m-%d_%H-%M-%S")
+            date_range_folder = f"from_{start_str}_to_{end_str}"
+        except Exception:
+            # Fallback to simple names
+            start_str = from_time.replace(':', '-').replace('T', '_')
+            end_str = to_time.replace(':', '-').replace('T', '_')
+            date_range_folder = f"from_{start_str}_to_{end_str}"
         
-        if not log_dir:
-            # Fallback: try to find the log_run_details.json in output_dir
-            base_dir = Path(output_dir)
-            if base_dir.exists():
-                # Get the most recent timestamped directory
-                subdirs = [d for d in base_dir.iterdir() if d.is_dir()]
-                if subdirs:
-                    log_dir = max(subdirs, key=lambda d: d.stat().st_mtime)
+        # download_logs.py uses its own script_dir/logs
+        base_path = download_script.parent / "logs"
         
+        # Expected log directory
+        log_dir = base_path / date_range_folder
+        
+        if not log_dir.exists():
+            print(f"❌ Error: Expected log directory does not exist: {log_dir}")
+            sys.exit(1)
+        
+        print(f"\nUsing logs in: {log_dir}\n")
         return log_dir
         
     except subprocess.CalledProcessError as e:
         print(f"❌ Error downloading logs: {e}")
-        print(e.stderr)
+        if e.stderr:
+            print(e.stderr)
         sys.exit(1)
 
 def process_all_logs(log_dir):
@@ -146,9 +160,9 @@ if __name__ == "__main__":
     parser.add_argument("--from-time", help="Start time (ISO 8601, e.g., 2026-01-14T05:37:00Z)")
     parser.add_argument("--to-time", help="End time (ISO 8601)")
     parser.add_argument("--node", action="append", help="Node to download (can be used multiple times)")
-    parser.add_argument("--header", help="Authorization header (e.g., 'Authorization: Bearer TOKEN')")
+    parser.add_argument("--header", action="append", help="Authorization header (e.g., 'Authorization: Bearer TOKEN'). Can be used multiple times.")
     parser.add_argument("--url", help="Grafana/Loki URL")
-    parser.add_argument("--output-dir", default="logs", help="Base output directory (default: logs)")
+    parser.add_argument("--config", help="Path to encrypted config file (e.g., ../../secrets/substrate/performance/performance.json)")
     
     # Processing parameters
     parser.add_argument(
@@ -184,19 +198,15 @@ if __name__ == "__main__":
             sys.exit(1)
         
         # Use default nodes if none specified
-        nodes = args.node if args.node else [
-            "alice", "bob", "charlie", "dave", "eve", "ferdie",
-            "george", "henry", "iris", "jack", "kate", "leo",
-            "mike", "nina", "oliver", "paul", "quinn", "rita", "sam", "tom"
-        ]
+        nodes = args.node if args.node else None
         
         log_dir = download_logs(
             args.from_time,
             args.to_time,
             nodes,
+            args.config,
             args.header,
-            args.url,
-            args.output_dir
+            args.url
         )
         
         if not log_dir:
