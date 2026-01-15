@@ -108,8 +108,10 @@ def download_logs(from_time, to_time, nodes, config, header, url):
         
     except subprocess.CalledProcessError as e:
         print(f"❌ Error downloading logs: {e}")
+        if e.stdout:
+            print(f"STDOUT:\n{e.stdout}")
         if e.stderr:
-            print(e.stderr)
+            print(f"STDERR:\n{e.stderr}")
         sys.exit(1)
 
 def process_all_logs(log_dir):
