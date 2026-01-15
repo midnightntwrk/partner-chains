@@ -127,9 +127,12 @@ Examples:
             str(script_dir / "../download_logs.py"),
             "--node", args.node,
             "--from-time", args.start_time,
-            "--to-time", args.end_time,
-            "--output-dir", str(output_dir)
+            "--to-time", args.end_time
         ]
+
+        # Only add output-dir if specified by user
+        if args.output_dir != ".":
+            download_cmd.extend(["--output-dir", str(output_dir)])
 
         if args.config:
             download_cmd.extend(["--config", args.config])
@@ -142,14 +145,32 @@ Examples:
         if not run_command(download_cmd, f"Step 1: Downloading {args.node}'s logs"):
             sys.exit(1)
 
-        # Find the most recent timestamped directory
-        subdirs = [d for d in output_dir.iterdir() if d.is_dir()]
-        if not subdirs:
-            print("ERROR: No timestamped directories found after download!")
-            sys.exit(1)
+        # Construct expected directory name based on date range
+        try:
+            start_dt = datetime.fromisoformat(args.start_time.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(args.end_time.replace('Z', '+00:00'))
+            start_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
+            end_str = end_dt.strftime("%Y-%m-%d_%H-%M-%S")
+            date_range_folder = f"from_{start_str}_to_{end_str}"
+        except Exception:
+            # Fallback to simple names
+            start_str = args.start_time.replace(':', '-').replace('T', '_')
+            end_str = args.end_time.replace(':', '-').replace('T', '_')
+            date_range_folder = f"from_{start_str}_to_{end_str}"
         
-        # Get the most recent directory
-        log_dir = max(subdirs, key=lambda d: d.stat().st_mtime)
+        # Determine base path
+        if args.output_dir != ".":
+            base_path = output_dir
+        else:
+            # download_logs.py will use its own script_dir/logs
+            base_path = script_dir.parent / "logs"
+        
+        log_dir = base_path / date_range_folder
+        
+        if not log_dir.exists():
+            print(f"ERROR: Expected log directory does not exist: {log_dir}")
+            sys.exit(1)
+            
         print(f"\nUsing log directory: {log_dir}")
         
         # Check that node log file exists in the directory
