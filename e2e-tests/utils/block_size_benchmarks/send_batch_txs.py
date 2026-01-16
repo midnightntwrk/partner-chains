@@ -74,15 +74,21 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, verbose=False, max_w
                 except Exception:
                     pass
 
+            if "RPC error: User error: Invalid Transaction (1010)" in result.stdout or \
+               "RPC error: User error: Invalid Transaction (1010)" in result.stderr:
+                print(f"❌ [{i}/{total_files}] Failed to send {tx_file} to {relay_name} (Invalid Transaction 1010) [Exec: {exec_time:.4f}s]")
+                return False
+
             print(f"✅ [{i}/{total_files}] Sent {tx_file} to {relay_name} [Chain Latency: {chain_latency:.2f}s, Exec: {exec_time:.4f}s]")
             if max_workers > 1:
                 time.sleep(random.uniform(0.05, 0.5))
-            return
+            return True
 
         except subprocess.CalledProcessError as e:
             if r_offset == len(RELAYS) - 1:
                 print(f"\n❌ Failed to submit {tx_file} to {relay_name}!")
                 print("Error Output:", e.stderr)
+                return False
             else:
                 print(f"⚠️  Failed to submit {tx_file} to {relay_name}, trying next node...")
 
@@ -126,12 +132,16 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     else:
         max_workers = min(os.cpu_count() or 1, len(files))
     print(f"ℹ️  Using {max_workers} threads for execution.")
+
+    results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, verbose=args.verbose, max_workers=max_workers) for i, tx_file in enumerate(files, 1)]
-        concurrent.futures.wait(futures)
+        for future in concurrent.futures.as_completed(futures):
+            results.append(future.result())
 
     end_time = time.time()
     print("\n🎉 Batch submission complete.")
+    print(f"Successful: {results.count(True)}, Failed: {results.count(False)}")
     print(f"⏱️ Total execution time: {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
