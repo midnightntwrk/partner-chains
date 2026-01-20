@@ -79,6 +79,11 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, verbose=False, max_w
                 print(f"❌ [{i}/{total_files}] Failed to send {tx_file} to {relay_name} (Invalid Transaction 1010) [Exec: {exec_time:.4f}s]")
                 return False
 
+            if "RPC error: User error: Transaction is temporarily banned (1012)" in result.stdout or \
+               "RPC error: User error: Transaction is temporarily banned (1012)" in result.stderr:
+                print(f"⛔ [{i}/{total_files}] Failed to send {tx_file} to {relay_name} (Temporarily Banned 1012) [Exec: {exec_time:.4f}s]")
+                return "Banned"
+
             print(f"✅ [{i}/{total_files}] Sent {tx_file} to {relay_name} [Chain Latency: {chain_latency:.2f}s, Exec: {exec_time:.4f}s]")
             if max_workers > 1:
                 time.sleep(random.uniform(0.05, 0.5))
@@ -141,7 +146,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
 
     end_time = time.time()
     print("\n🎉 Batch submission complete.")
-    print(f"Successful: {results.count(True)}, Failed: {results.count(False)}")
+    print(f"Valid: {results.count(True)}, Invalid: {results.count(False)}, Temporarily Banned: {results.count('Banned')}")
     print(f"⏱️ Total execution time: {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
