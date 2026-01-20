@@ -27,7 +27,9 @@ fn no_ariadne_parameters_on_main_chain_no_updates() {
 			mock_with_ariadne_parameters_not_found(),
 		))
 		.with_expected_io(vec![
-			print_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(true, true),
+			print_deploy_both_summary_io(),
 			get_ariadne_parameters_io(),
 			print_permissioned_candidates_are_not_set(),
 			prompt_permissioned_candidates_update_io(false),
@@ -65,7 +67,9 @@ fn no_ariadne_parameters_on_main_chain_do_updates() {
 		.with_json_file("payment.skey", valid_payment_signing_key_content())
 		.with_offchain_mocks(OffchainMocks::new_with_mock("http://localhost:1337", offchain_mock))
 		.with_expected_io(vec![
-			print_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(true, true),
+			print_deploy_both_summary_io(),
 			get_ariadne_parameters_io(),
 			print_permissioned_candidates_are_not_set(),
 			prompt_permissioned_candidates_update_io(true),
@@ -89,7 +93,9 @@ fn ariadne_parameters_are_on_main_chain_no_updates() {
 			mock_with_ariadne_parameters_found(),
 		))
 		.with_expected_io(vec![
-			print_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(true, true),
+			print_deploy_both_summary_io(),
 			get_ariadne_parameters_io(),
 			print_main_chain_and_configuration_candidates_difference_io(),
 			prompt_permissioned_candidates_update_io(false),
@@ -127,7 +133,9 @@ fn ariadne_parameters_are_on_main_chain_do_update() {
 		.with_json_file("payment.skey", valid_payment_signing_key_content())
 		.with_offchain_mocks(OffchainMocks::new_with_mock("http://localhost:1337", offchain_mock))
 		.with_expected_io(vec![
-			print_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(true, true),
+			print_deploy_both_summary_io(),
 			get_ariadne_parameters_io(),
 			print_main_chain_and_configuration_candidates_difference_io(),
 			prompt_permissioned_candidates_update_io(true),
@@ -155,7 +163,9 @@ fn fails_if_update_permissioned_candidates_fail() {
 		.with_json_file(CHAIN_CONFIG_FILE_PATH, test_chain_config_content())
 		.with_json_file(RESOURCES_CONFIG_FILE_PATH, test_resources_config_content())
 		.with_expected_io(vec![
-			print_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(true, true),
+			print_deploy_both_summary_io(),
 			get_ariadne_parameters_io(),
 			print_main_chain_and_configuration_candidates_difference_io(),
 			prompt_permissioned_candidates_update_io(true),
@@ -176,7 +186,9 @@ fn candidates_on_main_chain_are_same_as_in_config_no_updates() {
 		.with_json_file(CHAIN_CONFIG_FILE_PATH, test_chain_config_content())
 		.with_json_file(RESOURCES_CONFIG_FILE_PATH, test_resources_config_content())
 		.with_expected_io(vec![
-			print_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(true, true),
+			print_deploy_both_summary_io(),
 			get_ariadne_parameters_io(),
 			print_main_chain_and_configuration_candidates_are_equal_io(),
 			print_d_param_from_main_chain_io(),
@@ -207,15 +219,16 @@ fn skip_d_parameter_only_deploys_permissioned_candidates() {
 		.with_json_file("payment.skey", valid_payment_signing_key_content())
 		.with_offchain_mocks(OffchainMocks::new_with_mock("http://localhost:1337", offchain_mock))
 		.with_expected_io(vec![
-			print_skip_d_parameter_summary_io(),
-			print_permissioned_candidates_only_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(false, true),
+			print_deploy_permissioned_only_summary_io(),
 			get_ariadne_parameters_io(),
 			print_permissioned_candidates_are_not_set(),
 			prompt_permissioned_candidates_update_io(true),
 			upsert_permissioned_candidates_io(),
 			print_post_update_info_io(),
 		]);
-	let result = setup_main_chain_state_cmd_skip_d_parameter().run(&mock_context);
+	let result = setup_main_chain_state_cmd().run(&mock_context);
 	result.expect("should succeed");
 }
 
@@ -233,95 +246,77 @@ fn skip_permissioned_candidates_only_deploys_d_parameter() {
 		.with_json_file("payment.skey", valid_payment_signing_key_content())
 		.with_offchain_mocks(OffchainMocks::new_with_mock("http://localhost:1337", offchain_mock))
 		.with_expected_io(vec![
-			print_skip_permissioned_candidates_summary_io(),
-			print_d_parameter_only_info_io(),
+			print_intro_io(),
+			prompt_contract_selection_io(true, false),
+			print_deploy_d_param_only_summary_io(),
 			get_ariadne_parameters_io(),
 			prompt_d_parameter_update_io(true),
 			insert_d_parameter_io(),
 			print_post_update_info_io(),
 		]);
-	let result = setup_main_chain_state_cmd_skip_permissioned().run(&mock_context);
+	let result = setup_main_chain_state_cmd().run(&mock_context);
 	result.expect("should succeed");
 }
 
 #[test]
-fn skip_both_contracts_fails_with_error() {
+fn skip_both_contracts_exits_gracefully() {
 	let mock_context = MockIOContext::new()
 		.with_json_file(CHAIN_CONFIG_FILE_PATH, test_chain_config_content())
 		.with_json_file(RESOURCES_CONFIG_FILE_PATH, test_resources_config_content())
-		.with_expected_io(vec![print_skip_both_summary_io()]);
-	let result = setup_main_chain_state_cmd_skip_both().run(&mock_context);
-	let err = result.expect_err("should return error");
-	assert!(
-		err.to_string()
-			.contains("Both D-parameter and Permissioned Candidates are skipped")
-	);
+		.with_expected_io(vec![
+			print_intro_io(),
+			prompt_contract_selection_io(false, false),
+			print_no_contracts_selected_io(),
+		]);
+	let result = setup_main_chain_state_cmd().run(&mock_context);
+	result.expect("should succeed with graceful exit");
 }
 
 fn setup_main_chain_state_cmd() -> SetupMainChainStateCmd<MockRuntime> {
 	SetupMainChainStateCmd {
 		common_arguments: CommonArguments { retry_delay_seconds: 5, retry_count: 59 },
-		skip_d_parameter: false,
-		skip_permissioned_candidates: false,
 		_phantom: std::marker::PhantomData,
 	}
 }
 
-fn setup_main_chain_state_cmd_skip_d_parameter() -> SetupMainChainStateCmd<MockRuntime> {
-	SetupMainChainStateCmd {
-		common_arguments: CommonArguments { retry_delay_seconds: 5, retry_count: 59 },
-		skip_d_parameter: true,
-		skip_permissioned_candidates: false,
-		_phantom: std::marker::PhantomData,
-	}
+fn print_intro_io() -> MockIO {
+	MockIO::Group(vec![
+		MockIO::print(
+			"This wizard will set or update D-Parameter and Permissioned Candidates on the main chain.",
+		),
+		MockIO::print("You can choose which contracts to deploy. Setting contracts costs ADA!"),
+	])
 }
 
-fn setup_main_chain_state_cmd_skip_permissioned() -> SetupMainChainStateCmd<MockRuntime> {
-	SetupMainChainStateCmd {
-		common_arguments: CommonArguments { retry_delay_seconds: 5, retry_count: 59 },
-		skip_d_parameter: false,
-		skip_permissioned_candidates: true,
-		_phantom: std::marker::PhantomData,
-	}
+fn prompt_contract_selection_io(deploy_d_param: bool, deploy_permissioned: bool) -> MockIO {
+	MockIO::Group(vec![
+		MockIO::prompt_yes_no(
+			"Do you want to deploy/update the D-parameter contract?",
+			true,
+			deploy_d_param,
+		),
+		MockIO::prompt_yes_no(
+			"Do you want to deploy/update the Permissioned Candidates contract?",
+			true,
+			deploy_permissioned,
+		),
+	])
 }
 
-fn setup_main_chain_state_cmd_skip_both() -> SetupMainChainStateCmd<MockRuntime> {
-	SetupMainChainStateCmd {
-		common_arguments: CommonArguments { retry_delay_seconds: 5, retry_count: 59 },
-		skip_d_parameter: true,
-		skip_permissioned_candidates: true,
-		_phantom: std::marker::PhantomData,
-	}
+fn print_deploy_both_summary_io() -> MockIO {
+	MockIO::print("Contracts to deploy: D-parameter, Permissioned Candidates")
 }
 
-fn print_info_io() -> MockIO {
-	MockIO::print(
-		"This wizard will set or update D-Parameter and Permissioned Candidates on the main chain. Setting either of these costs ADA!",
-	)
-}
-
-fn print_permissioned_candidates_only_info_io() -> MockIO {
-	MockIO::print(
-		"This wizard will set or update Permissioned Candidates on the main chain. Setting this costs ADA!",
-	)
-}
-
-fn print_d_parameter_only_info_io() -> MockIO {
-	MockIO::print(
-		"This wizard will set or update D-Parameter on the main chain. Setting this costs ADA!",
-	)
-}
-
-fn print_skip_d_parameter_summary_io() -> MockIO {
+fn print_deploy_permissioned_only_summary_io() -> MockIO {
 	MockIO::print("Contracts to deploy: Permissioned Candidates. Contracts to skip: D-parameter")
 }
 
-fn print_skip_permissioned_candidates_summary_io() -> MockIO {
+fn print_deploy_d_param_only_summary_io() -> MockIO {
 	MockIO::print("Contracts to deploy: D-parameter. Contracts to skip: Permissioned Candidates")
 }
 
-fn print_skip_both_summary_io() -> MockIO {
-	MockIO::print("Contracts to skip: D-parameter, Permissioned Candidates")
+fn print_no_contracts_selected_io() -> MockIO {
+	MockIO::print("No contracts selected for deployment. Exiting.")
 }
 
 fn get_ariadne_parameters_io() -> MockIO {

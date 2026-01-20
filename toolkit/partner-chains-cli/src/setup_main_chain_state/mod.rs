@@ -71,16 +71,6 @@ impl ContractDeploymentConfig {
 pub struct SetupMainChainStateCmd<T: PartnerChainRuntime> {
 	#[clap(flatten)]
 	common_arguments: crate::CommonArguments,
-
-	/// Skip deploying the D-parameter contract (legacy Haskell contract).
-	/// Use this flag for mainnet deployments where D-parameter is not needed.
-	#[clap(long)]
-	skip_d_parameter: bool,
-
-	/// Skip deploying the permissioned candidates contract.
-	#[clap(long)]
-	skip_permissioned_candidates: bool,
-
 	#[clap(skip)]
 	_phantom: PhantomData<T>,
 }
@@ -108,33 +98,33 @@ impl SortedPermissionedCandidates {
 
 impl<T: PartnerChainRuntime> CmdRun for SetupMainChainStateCmd<T> {
 	fn run<C: IOContext>(&self, context: &C) -> anyhow::Result<()> {
+		context.print(
+			"This wizard will set or update D-Parameter and Permissioned Candidates on the main chain.",
+		);
+		context.print("You can choose which contracts to deploy. Setting contracts costs ADA!");
+
+		// Prompt user for which contracts to deploy
+		let deploy_d_parameter =
+			context.prompt_yes_no("Do you want to deploy/update the D-parameter contract?", true);
+		let deploy_permissioned_candidates = context.prompt_yes_no(
+			"Do you want to deploy/update the Permissioned Candidates contract?",
+			true,
+		);
+
 		let deployment_config = ContractDeploymentConfig {
-			skip_d_parameter: self.skip_d_parameter,
-			skip_permissioned_candidates: self.skip_permissioned_candidates,
+			skip_d_parameter: !deploy_d_parameter,
+			skip_permissioned_candidates: !deploy_permissioned_candidates,
 		};
 
-		// Show deployment summary if any contracts are being skipped
-		if deployment_config.skip_d_parameter || deployment_config.skip_permissioned_candidates {
-			context.print(&deployment_config.deployment_summary());
+		if deployment_config.skip_d_parameter && deployment_config.skip_permissioned_candidates {
+			context.print("No contracts selected for deployment. Exiting.");
+			return Ok(());
 		}
 
-		let chain_config = crate::config::load_chain_config(context)?;
+		// Show deployment summary
+		context.print(&deployment_config.deployment_summary());
 
-		// Build info message based on which contracts will be deployed
-		let info_message = if deployment_config.skip_d_parameter
-			&& deployment_config.skip_permissioned_candidates
-		{
-			return Err(anyhow!(
-				"Both D-parameter and Permissioned Candidates are skipped. Nothing to deploy."
-			));
-		} else if deployment_config.skip_d_parameter {
-			"This wizard will set or update Permissioned Candidates on the main chain. Setting this costs ADA!"
-		} else if deployment_config.skip_permissioned_candidates {
-			"This wizard will set or update D-Parameter on the main chain. Setting this costs ADA!"
-		} else {
-			"This wizard will set or update D-Parameter and Permissioned Candidates on the main chain. Setting either of these costs ADA!"
-		};
-		context.print(info_message);
+		let chain_config = crate::config::load_chain_config(context)?;
 
 		// Only load permissioned candidates config if we're going to deploy them
 		let config_initial_authorities = if !deployment_config.skip_permissioned_candidates {

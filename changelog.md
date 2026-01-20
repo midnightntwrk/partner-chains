@@ -6,8 +6,8 @@ This changelog is based on [Keep A Changelog](https://keepachangelog.com/en/1.1.
 
 ## Added
 
-* Added `--skip-d-parameter` and `--skip-permissioned-candidates` flags to the `setup-main-chain-state` wizard command.
-These flags allow selective deployment of smart contracts, enabling mainnet deployments that exclude legacy Haskell D-parameter contracts while retaining the option to deploy permissioned candidates contracts.
+* Added interactive contract selection prompts to the `setup-main-chain-state` wizard command.
+Users are now prompted to choose which contracts to deploy (D-parameter and/or Permissioned Candidates), enabling mainnet deployments that exclude legacy Haskell D-parameter contracts while retaining the option to deploy permissioned candidates contracts.
 
 ## Changed
 
