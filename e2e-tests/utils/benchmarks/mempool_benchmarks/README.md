@@ -105,7 +105,7 @@ Use the automated runner script to download logs and generate analysis in one co
 ```bash
 # With config file containing Grafana credentials
 python3 run_mempool_benchmark.py \
-  --config ../../secrets/substrate/performance/performance.json \
+  --config ../../../secrets/substrate/performance/performance.json \
   --from-time "2026-01-08T10:00:00Z" \
   --to-time "2026-01-08T10:10:00Z" \
   --window 1000 \
@@ -122,14 +122,16 @@ This will:
 
 1. **Download logs from Grafana/Loki** (optional)
    
-   Use the download_logs.py script to fetch Ferdie's logs:
+   Use the download_logs.py script from the parent directory to fetch Ferdie's logs:
    ```bash
-   python3 download_logs.py --config path/to/config.json \
+   python3 ../download_logs.py --config path/to/config.json \
      --node ferdie \
      --from-time "2026-01-07T10:00:00Z" \
      --to-time "2026-01-07T11:00:00Z" \
      --output-dir logs
    ```
+   
+   Note: download_logs.py is now located in the benchmarks/ directory.
    
    Or manually put Ferdie's logs in `ferdie.txt`
 

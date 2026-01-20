@@ -159,12 +159,15 @@ if __name__ == "__main__":
     )
     
     # Download parameters
-    parser.add_argument("--from-time", help="Start time (ISO 8601, e.g., 2026-01-14T05:37:00Z)")
-    parser.add_argument("--to-time", help="End time (ISO 8601)")
+    parser.add_argument("--time-range", help='Time range as JSON, e.g., \'{"from":"2026-01-20 10:34:25","to":"2026-01-20 11:34:25"}\'')
+    parser.add_argument("--from-time", help="Start time (ISO 8601 or YYYY-MM-DD HH:MM:SS, e.g., 2026-01-14T05:37:00Z)")
+    parser.add_argument("--to-time", help="End time (ISO 8601 or YYYY-MM-DD HH:MM:SS)")
     parser.add_argument("--node", action="append", help="Node to download (can be used multiple times)")
     parser.add_argument("--header", action="append", help="Authorization header (e.g., 'Authorization: Bearer TOKEN'). Can be used multiple times.")
     parser.add_argument("--url", help="Grafana/Loki URL")
-    parser.add_argument("--config", help="Path to encrypted config file (e.g., ../../secrets/substrate/performance/performance.json)")
+    parser.add_argument("--config", 
+                       default="../../../secrets/substrate/performance/performance.json",
+                       help="Path to encrypted config file (default: ../../../secrets/substrate/performance/performance.json)")
     
     # Processing parameters
     parser.add_argument(
@@ -178,6 +181,19 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
+    
+    # Parse time range from JSON if provided
+    if args.time_range:
+        try:
+            time_data = json.loads(args.time_range)
+            args.from_time = time_data.get('from')
+            args.to_time = time_data.get('to')
+            if not args.from_time or not args.to_time:
+                print("Error: time-range JSON must contain 'from' and 'to' fields")
+                sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON in --time-range: {e}")
+            sys.exit(1)
     
     # Legacy mode: single file processing
     if args.log_file:

@@ -65,11 +65,15 @@ def load_config(config_file):
         sys.exit(1)
 
 def parse_time_to_ns(time_str):
-    """Parses an ISO 8601 time string to nanoseconds from epoch."""
+    """Parses an ISO 8601 or YYYY-MM-DD HH:MM:SS time string to nanoseconds from epoch."""
     try:
         # Handles Z for UTC
         if time_str.endswith("Z"):
             time_str = time_str[:-1] + "+00:00"
+        
+        # Try to parse space-separated format (YYYY-MM-DD HH:MM:SS)
+        if ' ' in time_str and 'T' not in time_str:
+            time_str = time_str.replace(' ', 'T')
         
         # Basic ISO parsing
         dt = datetime.fromisoformat(time_str)
@@ -81,7 +85,7 @@ def parse_time_to_ns(time_str):
         return int(dt.timestamp() * 1e9)
     except ValueError as e:
         print(f"Error parsing time '{time_str}': {e}")
-        print("Please use ISO 8601 format, e.g., '2023-01-01T12:00:00Z'")
+        print("Please use ISO 8601 format (e.g., '2023-01-01T12:00:00Z') or 'YYYY-MM-DD HH:MM:SS'")
         sys.exit(1)
 
 def query_loki(url, query, start_ns, end_ns, limit=5000, headers=None):
@@ -164,10 +168,13 @@ def query_loki(url, query, start_ns, end_ns, limit=5000, headers=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Download logs from Loki/Grafana.")
-    parser.add_argument("--config", help="Path to encrypted config file (e.g., secrets/substrate/performance/performance.json)")
+    parser.add_argument("--config", 
+                       default="../../secrets/substrate/performance/performance.json",
+                       help="Path to encrypted config file (default: ../../secrets/substrate/performance/performance.json)")
     parser.add_argument("--url", help="Loki API URL (overrides config file)")
-    parser.add_argument("--from-time", required=True, dest="start_time", help="Start time (ISO 8601)")
-    parser.add_argument("--to-time", required=True, dest="end_time", help="End time (ISO 8601)")
+    parser.add_argument("--time-range", help='Time range as JSON, e.g., \'{"from":"2026-01-20 10:34:25","to":"2026-01-20 11:34:25"}\'')
+    parser.add_argument("--from-time", dest="start_time", help="Start time (ISO 8601 or YYYY-MM-DD HH:MM:SS)")
+    parser.add_argument("--to-time", dest="end_time", help="End time (ISO 8601 or YYYY-MM-DD HH:MM:SS)")
     
     # Node selection
     group = parser.add_mutually_exclusive_group()
@@ -179,6 +186,24 @@ def main():
     parser.add_argument("--output-dir", dest="output_dir", default=None, help="Base output directory for log files (default: script directory/logs)")
     
     args = parser.parse_args()
+    
+    # Parse time range from JSON if provided
+    if args.time_range:
+        try:
+            time_data = json.loads(args.time_range)
+            args.start_time = time_data.get('from')
+            args.end_time = time_data.get('to')
+            if not args.start_time or not args.end_time:
+                print("Error: time-range JSON must contain 'from' and 'to' fields")
+                sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON in --time-range: {e}")
+            sys.exit(1)
+    
+    # Validate that we have time range
+    if not args.start_time or not args.end_time:
+        print("Error: Either --time-range or both --from-time and --to-time must be provided")
+        sys.exit(1)
     
     # Load config file if provided
     config = None

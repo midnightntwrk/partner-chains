@@ -72,15 +72,18 @@ def download_logs(download_script, args):
     # This matches the logic in download_logs.py
     try:
         from datetime import datetime
-        start_dt = datetime.fromisoformat(args.from_time.replace('Z', '+00:00'))
-        end_dt = datetime.fromisoformat(args.to_time.replace('Z', '+00:00'))
+        # Handle both space-separated and T-separated formats
+        from_time_normalized = args.from_time.replace(' ', 'T').replace('Z', '+00:00')
+        to_time_normalized = args.to_time.replace(' ', 'T').replace('Z', '+00:00')
+        start_dt = datetime.fromisoformat(from_time_normalized)
+        end_dt = datetime.fromisoformat(to_time_normalized)
         start_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
         end_str = end_dt.strftime("%Y-%m-%d_%H-%M-%S")
         date_range_folder = f"from_{start_str}_to_{end_str}"
-    except Exception:
+    except Exception as e:
         # Fallback to simple names
-        start_str = args.from_time.replace(':', '-').replace('T', '_')
-        end_str = args.to_time.replace(':', '-').replace('T', '_')
+        start_str = args.from_time.replace(':', '-').replace('T', '_').replace(' ', '_')
+        end_str = args.to_time.replace(':', '-').replace('T', '_').replace(' ', '_')
         date_range_folder = f"from_{start_str}_to_{end_str}"
     
     # Determine base path
@@ -545,10 +548,13 @@ def main():
     )
     
     # Download logs arguments
-    parser.add_argument("--config", help="Path to encrypted config file")
+    parser.add_argument("--config", 
+                       default="../../../secrets/substrate/performance/performance.json",
+                       help="Path to encrypted config file (default: ../../../secrets/substrate/performance/performance.json)")
     parser.add_argument("--url", help="Loki API URL (overrides config file)")
-    parser.add_argument("--from-time", required=True, help="Start time (ISO 8601)")
-    parser.add_argument("--to-time", required=True, help="End time (ISO 8601)")
+    parser.add_argument("--time-range", help='Time range as JSON, e.g., \'{"from":"2026-01-20 10:34:25","to":"2026-01-20 11:34:25"}\'')
+    parser.add_argument("--from-time", help="Start time (ISO 8601 or YYYY-MM-DD HH:MM:SS)")
+    parser.add_argument("--to-time", help="End time (ISO 8601 or YYYY-MM-DD HH:MM:SS)")
     
     # Node selection
     group = parser.add_mutually_exclusive_group()
@@ -564,6 +570,24 @@ def main():
     parser.add_argument("--log-dir", help="Path to existing log directory (required if --skip-download is used)")
     
     args = parser.parse_args()
+    
+    # Parse time range from JSON if provided
+    if args.time_range:
+        try:
+            time_data = json.loads(args.time_range)
+            args.from_time = time_data.get('from')
+            args.to_time = time_data.get('to')
+            if not args.from_time or not args.to_time:
+                print("Error: time-range JSON must contain 'from' and 'to' fields")
+                sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON in --time-range: {e}")
+            sys.exit(1)
+    
+    # Validate that we have time range (unless skipping download)
+    if not args.skip_download and (not args.from_time or not args.to_time):
+        print("Error: Either --time-range or both --from-time and --to-time must be provided")
+        sys.exit(1)
     
     # Validate skip-download arguments
     if args.skip_download and not args.log_dir:

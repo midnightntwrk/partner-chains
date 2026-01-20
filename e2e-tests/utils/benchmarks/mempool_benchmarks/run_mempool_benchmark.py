@@ -9,6 +9,7 @@ This script automates the process of:
 """
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -71,15 +72,18 @@ Examples:
                        help="Node to download logs from (default: ferdie)")
     
     # Download options
-    parser.add_argument("--config", help="Path to encrypted config file with Grafana credentials")
+    parser.add_argument("--config", 
+                       default="../../../secrets/substrate/performance/performance.json",
+                       help="Path to encrypted config file with Grafana credentials (default: ../../../secrets/substrate/performance/performance.json)")
     parser.add_argument("--url", help="Loki API URL (overrides config file)")
     parser.add_argument("--header", action='append', help="Custom header 'Key: Value' (can be used multiple times)")
 
-    # Time range (required)
-    parser.add_argument("--from-time", required=True, dest="start_time",
-                       help="Start time in ISO 8601 format (e.g., '2026-01-08T10:00:00Z')")
-    parser.add_argument("--to-time", required=True, dest="end_time",
-                       help="End time in ISO 8601 format (e.g., '2026-01-08T10:10:00Z')")
+    # Time range
+    parser.add_argument("--time-range", help='Time range as JSON, e.g., \'{"from":"2026-01-20 10:34:25","to":"2026-01-20 11:34:25"}\'')
+    parser.add_argument("--from-time", dest="start_time",
+                       help="Start time in ISO 8601 format or YYYY-MM-DD HH:MM:SS (e.g., '2026-01-08T10:00:00Z')")
+    parser.add_argument("--to-time", dest="end_time",
+                       help="End time in ISO 8601 format or YYYY-MM-DD HH:MM:SS (e.g., '2026-01-08T10:10:00Z')")
 
     # Analysis options
     parser.add_argument("--window", type=int, default=None,
@@ -94,6 +98,24 @@ Examples:
                        help="Skip extraction (use existing mempool_report.txt)")
 
     args = parser.parse_args()
+    
+    # Parse time range from JSON if provided
+    if args.time_range:
+        try:
+            time_data = json.loads(args.time_range)
+            args.start_time = time_data.get('from')
+            args.end_time = time_data.get('to')
+            if not args.start_time or not args.end_time:
+                print("Error: time-range JSON must contain 'from' and 'to' fields")
+                sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON in --time-range: {e}")
+            sys.exit(1)
+    
+    # Validate that we have time range (unless skipping download)
+    if not args.skip_download and (not args.start_time or not args.end_time):
+        print("Error: Either --time-range or both --from-time and --to-time must be provided")
+        sys.exit(1)
 
     # Resolve output directory
     output_dir = Path(args.output_dir).resolve()
@@ -104,8 +126,11 @@ Examples:
     # Calculate window if not provided
     if args.window is None:
         # Parse time range to calculate total duration
-        start = datetime.fromisoformat(args.start_time.replace('Z', '+00:00'))
-        end = datetime.fromisoformat(args.end_time.replace('Z', '+00:00'))
+        # Handle both space-separated and T-separated formats
+        start_time_normalized = args.start_time.replace(' ', 'T').replace('Z', '+00:00')
+        end_time_normalized = args.end_time.replace(' ', 'T').replace('Z', '+00:00')
+        start = datetime.fromisoformat(start_time_normalized)
+        end = datetime.fromisoformat(end_time_normalized)
         duration_seconds = (end - start).total_seconds()
         # Use 1 second window as default for all durations
         args.window = 1000
@@ -124,7 +149,7 @@ Examples:
     if not args.skip_download:
         download_cmd = [
             sys.executable,
-            str(script_dir / "../download_logs.py"),
+            str(script_dir.parent / "download_logs.py"),
             "--node", args.node,
             "--from-time", args.start_time,
             "--to-time", args.end_time
@@ -147,15 +172,18 @@ Examples:
 
         # Construct expected directory name based on date range
         try:
-            start_dt = datetime.fromisoformat(args.start_time.replace('Z', '+00:00'))
-            end_dt = datetime.fromisoformat(args.end_time.replace('Z', '+00:00'))
+            # Handle both space-separated and T-separated formats
+            start_time_normalized = args.start_time.replace(' ', 'T').replace('Z', '+00:00')
+            end_time_normalized = args.end_time.replace(' ', 'T').replace('Z', '+00:00')
+            start_dt = datetime.fromisoformat(start_time_normalized)
+            end_dt = datetime.fromisoformat(end_time_normalized)
             start_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
             end_str = end_dt.strftime("%Y-%m-%d_%H-%M-%S")
             date_range_folder = f"from_{start_str}_to_{end_str}"
         except Exception:
             # Fallback to simple names
-            start_str = args.start_time.replace(':', '-').replace('T', '_')
-            end_str = args.end_time.replace(':', '-').replace('T', '_')
+            start_str = args.start_time.replace(':', '-').replace('T', '_').replace(' ', '_')
+            end_str = args.end_time.replace(':', '-').replace('T', '_').replace(' ', '_')
             date_range_folder = f"from_{start_str}_to_{end_str}"
         
         # Determine base path

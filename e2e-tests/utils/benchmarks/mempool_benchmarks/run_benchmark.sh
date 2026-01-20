@@ -1,7 +1,20 @@
 #!/bin/bash
-# Wrapper script to ensure virtual environment is properly set up before running benchmark
+# Wrapper script to ensure virtual environment is properly set up before running mempool benchmark
+#
+# Usage examples:
+#   # With JSON time range (config defaults to ../../../secrets/substrate/performance/performance.json)
+#   ./run_benchmark.sh --time-range '{"from":"2026-01-20 10:34:25","to":"2026-01-20 11:34:25"}'
+#
+#   # With individual time arguments
+#   ./run_benchmark.sh --from-time 2026-01-20T14:00:00Z --to-time 2026-01-20T15:00:00Z
+#
+#   # Override config file and specify node
+#   ./run_benchmark.sh --node charlie --config /path/to/config.json --time-range '{"from":"2026-01-20 10:34:25","to":"2026-01-20 11:34:25"}'
 
 set -e
+
+# Default config file (can be overridden with --config)
+DEFAULT_CONFIG="../../../secrets/substrate/performance/performance.json"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -13,8 +26,8 @@ PIP_BIN="$VENV_DIR/bin/pip"
 # Function to check if venv is valid
 check_venv() {
     if [ -f "$PYTHON_BIN" ] && [ -f "$PIP_BIN" ]; then
-        # Check if matplotlib is installed
-        if "$PYTHON_BIN" -c "import matplotlib" 2>/dev/null; then
+        # Check if pandas is installed
+        if "$PYTHON_BIN" -c "import pandas" 2>/dev/null; then
             return 0
         fi
     fi
@@ -45,4 +58,5 @@ if ! check_venv; then
 fi
 
 # Run the benchmark script with all arguments passed through
-exec "$PYTHON_BIN" "$SCRIPT_DIR/run_benchmark.py" "$@"
+# Note: Python script already has DEFAULT_CONFIG as default, so we don't need to add it here
+exec "$PYTHON_BIN" "$SCRIPT_DIR/run_mempool_benchmark.py" "$@"
