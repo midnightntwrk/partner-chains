@@ -26,10 +26,61 @@ use std::marker::PhantomData;
 #[cfg(test)]
 mod tests;
 
+/// Configuration for which contracts to deploy during main chain state setup.
+#[derive(Clone, Debug, Default)]
+pub struct ContractDeploymentConfig {
+	/// Skip deploying D-parameter contract (legacy Haskell contract).
+	pub skip_d_parameter: bool,
+	/// Skip deploying permissioned candidates contract.
+	pub skip_permissioned_candidates: bool,
+}
+
+impl ContractDeploymentConfig {
+	/// Returns a summary of which contracts will be deployed.
+	pub fn deployment_summary(&self) -> String {
+		let mut deploying = Vec::new();
+		let mut skipping = Vec::new();
+
+		if self.skip_d_parameter {
+			skipping.push("D-parameter");
+		} else {
+			deploying.push("D-parameter");
+		}
+
+		if self.skip_permissioned_candidates {
+			skipping.push("Permissioned Candidates");
+		} else {
+			deploying.push("Permissioned Candidates");
+		}
+
+		let mut summary = String::new();
+		if !deploying.is_empty() {
+			summary.push_str(&format!("Contracts to deploy: {}", deploying.join(", ")));
+		}
+		if !skipping.is_empty() {
+			if !summary.is_empty() {
+				summary.push_str(". ");
+			}
+			summary.push_str(&format!("Contracts to skip: {}", skipping.join(", ")));
+		}
+		summary
+	}
+}
+
 #[derive(Clone, Debug, clap::Parser)]
 pub struct SetupMainChainStateCmd<T: PartnerChainRuntime> {
 	#[clap(flatten)]
 	common_arguments: crate::CommonArguments,
+
+	/// Skip deploying the D-parameter contract (legacy Haskell contract).
+	/// Use this flag for mainnet deployments where D-parameter is not needed.
+	#[clap(long)]
+	skip_d_parameter: bool,
+
+	/// Skip deploying the permissioned candidates contract.
+	#[clap(long)]
+	skip_permissioned_candidates: bool,
+
 	#[clap(skip)]
 	_phantom: PhantomData<T>,
 }
@@ -45,7 +96,7 @@ impl<Keys: MaybeFromCandidateKeys> TryFrom<PermissionedCandidateData>
 	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct SortedPermissionedCandidates(Vec<PermissionedCandidateData>);
 
 impl SortedPermissionedCandidates {
@@ -57,48 +108,85 @@ impl SortedPermissionedCandidates {
 
 impl<T: PartnerChainRuntime> CmdRun for SetupMainChainStateCmd<T> {
 	fn run<C: IOContext>(&self, context: &C) -> anyhow::Result<()> {
+		let deployment_config = ContractDeploymentConfig {
+			skip_d_parameter: self.skip_d_parameter,
+			skip_permissioned_candidates: self.skip_permissioned_candidates,
+		};
+
+		// Show deployment summary if any contracts are being skipped
+		if deployment_config.skip_d_parameter || deployment_config.skip_permissioned_candidates {
+			context.print(&deployment_config.deployment_summary());
+		}
+
 		let chain_config = crate::config::load_chain_config(context)?;
-		context.print(
-			"This wizard will set or update D-Parameter and Permissioned Candidates on the main chain. Setting either of these costs ADA!",
-		);
-		let config_initial_authorities =
-			initial_permissioned_candidates_from_chain_config::<C, T::Keys>(context)?;
+
+		// Build info message based on which contracts will be deployed
+		let info_message = if deployment_config.skip_d_parameter
+			&& deployment_config.skip_permissioned_candidates
+		{
+			return Err(anyhow!(
+				"Both D-parameter and Permissioned Candidates are skipped. Nothing to deploy."
+			));
+		} else if deployment_config.skip_d_parameter {
+			"This wizard will set or update Permissioned Candidates on the main chain. Setting this costs ADA!"
+		} else if deployment_config.skip_permissioned_candidates {
+			"This wizard will set or update D-Parameter on the main chain. Setting this costs ADA!"
+		} else {
+			"This wizard will set or update D-Parameter and Permissioned Candidates on the main chain. Setting either of these costs ADA!"
+		};
+		context.print(info_message);
+
+		// Only load permissioned candidates config if we're going to deploy them
+		let config_initial_authorities = if !deployment_config.skip_permissioned_candidates {
+			Some(initial_permissioned_candidates_from_chain_config::<C, T::Keys>(context)?)
+		} else {
+			None
+		};
+
 		context.print("Will read the current D-Parameter and Permissioned Candidates from the main chain using Ogmios client.");
 		let ogmios_config = prompt_ogmios_configuration(context)?;
 		let offchain = context.offchain_impl(&ogmios_config)?;
 		let config_file_path = context.config_file_path(ConfigFile::Chain);
 
-		match get_permissioned_candidates::<C>(&offchain, &chain_config)? {
-			Some(candidates) if candidates == config_initial_authorities => {
-				context.print(&format!("Permissioned candidates in the {} file match the most recent on-chain initial permissioned candidates.", config_file_path));
-			},
-			candidates => {
-				print_on_chain_and_config_permissioned_candidates(
-					context,
-					candidates,
-					&config_initial_authorities,
-				);
-				set_candidates_on_main_chain(
-					self.common_arguments.retries(),
-					context,
-					&offchain,
-					config_initial_authorities,
-					chain_config.chain_parameters.genesis_utxo,
-				)?;
-			},
-		};
-		let d_parameter = get_d_parameter::<C>(&offchain, &chain_config)?;
-		print_on_chain_d_parameter(context, &d_parameter);
-		set_d_parameter_on_main_chain(
-			self.common_arguments.retries(),
-			context,
-			&offchain,
-			d_parameter.unwrap_or(DParameter {
-				num_permissioned_candidates: 0,
-				num_registered_candidates: 0,
-			}),
-			chain_config.chain_parameters.genesis_utxo,
-		)?;
+		// Handle permissioned candidates if not skipped
+		if let Some(ref config_initial_authorities) = config_initial_authorities {
+			match get_permissioned_candidates::<C>(&offchain, &chain_config)? {
+				Some(candidates) if candidates == *config_initial_authorities => {
+					context.print(&format!("Permissioned candidates in the {} file match the most recent on-chain initial permissioned candidates.", config_file_path));
+				},
+				candidates => {
+					print_on_chain_and_config_permissioned_candidates(
+						context,
+						candidates,
+						config_initial_authorities,
+					);
+					set_candidates_on_main_chain(
+						self.common_arguments.retries(),
+						context,
+						&offchain,
+						config_initial_authorities.clone(),
+						chain_config.chain_parameters.genesis_utxo,
+					)?;
+				},
+			};
+		}
+
+		// Handle D-parameter if not skipped
+		if !deployment_config.skip_d_parameter {
+			let d_parameter = get_d_parameter::<C>(&offchain, &chain_config)?;
+			print_on_chain_d_parameter(context, &d_parameter);
+			set_d_parameter_on_main_chain(
+				self.common_arguments.retries(),
+				context,
+				&offchain,
+				d_parameter.unwrap_or(DParameter {
+					num_permissioned_candidates: 0,
+					num_registered_candidates: 0,
+				}),
+				chain_config.chain_parameters.genesis_utxo,
+			)?;
+		}
+
 		context.print("Done. Please remember that any changes to the Cardano state can be observed immediately, but from the Partner Chain point of view they will be effective in two main chain epochs.");
 		Ok(())
 	}

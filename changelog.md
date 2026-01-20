@@ -4,6 +4,11 @@ This changelog is based on [Keep A Changelog](https://keepachangelog.com/en/1.1.
 
 # Unreleased
 
+## Added
+
+* Added `--skip-d-parameter` and `--skip-permissioned-candidates` flags to the `setup-main-chain-state` wizard command.
+These flags allow selective deployment of smart contracts, enabling mainnet deployments that exclude legacy Haskell D-parameter contracts while retaining the option to deploy permissioned candidates contracts.
+
 ## Changed
 
 * Updated polkadot-sdk dependency to polkadot-stable2509.
