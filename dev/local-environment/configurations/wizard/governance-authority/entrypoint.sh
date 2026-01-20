@@ -145,6 +145,10 @@ echo "Setting up main chain state..."
 expect <<EOF
 spawn ./partner-chains-node wizards setup-main-chain-state
 set timeout 300
+expect "Do you want to deploy/update the D-parameter contract?"
+send "y\r"
+expect "Do you want to deploy/update the Permissioned Candidates contract?"
+send "y\r"
 expect "Ogmios protocol (http/https)"
 send "\r"
 expect "Ogmios hostname (ogmios)"
