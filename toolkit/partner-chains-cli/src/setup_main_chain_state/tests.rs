@@ -252,7 +252,10 @@ fn skip_both_contracts_fails_with_error() {
 		.with_expected_io(vec![print_skip_both_summary_io()]);
 	let result = setup_main_chain_state_cmd_skip_both().run(&mock_context);
 	let err = result.expect_err("should return error");
-	assert!(err.to_string().contains("Both D-parameter and Permissioned Candidates are skipped"));
+	assert!(
+		err.to_string()
+			.contains("Both D-parameter and Permissioned Candidates are skipped")
+	);
 }
 
 fn setup_main_chain_state_cmd() -> SetupMainChainStateCmd<MockRuntime> {
