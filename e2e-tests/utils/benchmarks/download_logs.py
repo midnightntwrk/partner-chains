@@ -65,7 +65,10 @@ def load_config(config_file):
         sys.exit(1)
 
 def parse_time_to_ns(time_str):
-    """Parses an ISO 8601 or YYYY-MM-DD HH:MM:SS time string to nanoseconds from epoch."""
+    """Parses an ISO 8601 or YYYY-MM-DD HH:MM:SS time string to nanoseconds from epoch.
+    
+    Times without timezone info are assumed to be in EST and converted to UTC.
+    """
     try:
         # Handles Z for UTC
         if time_str.endswith("Z"):
@@ -78,14 +81,19 @@ def parse_time_to_ns(time_str):
         # Basic ISO parsing
         dt = datetime.fromisoformat(time_str)
         
-        # Check if timezone aware, if not assume UTC
+        # If no timezone info, assume EST (UTC-5) and convert to UTC
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            from datetime import timedelta
+            # Assume time is in EST (UTC-5)
+            dt = dt.replace(tzinfo=timezone(timedelta(hours=-5)))
+            # Convert to UTC
+            dt = dt.astimezone(timezone.utc)
+            print(f"  Converted EST time '{time_str}' to UTC: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
             
         return int(dt.timestamp() * 1e9)
     except ValueError as e:
         print(f"Error parsing time '{time_str}': {e}")
-        print("Please use ISO 8601 format (e.g., '2023-01-01T12:00:00Z') or 'YYYY-MM-DD HH:MM:SS'")
+        print("Please use ISO 8601 format (e.g., '2023-01-01T12:00:00Z') or 'YYYY-MM-DD HH:MM:SS' (assumed EST)")
         sys.exit(1)
 
 def query_loki(url, query, start_ns, end_ns, limit=5000, headers=None):

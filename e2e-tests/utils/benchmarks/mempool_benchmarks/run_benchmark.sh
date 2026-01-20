@@ -2,7 +2,7 @@
 # Wrapper script to ensure virtual environment is properly set up before running mempool benchmark
 #
 # Usage examples:
-#   # With JSON time range (config defaults to ../../../secrets/substrate/performance/performance.json)
+#   # With JSON time range in EST (automatically converted to UTC)
 #   ./run_benchmark.sh --time-range '{"from":"2026-01-20 10:34:25","to":"2026-01-20 11:34:25"}'
 #
 #   # With individual time arguments
