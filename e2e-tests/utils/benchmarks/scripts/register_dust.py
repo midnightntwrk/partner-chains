@@ -70,6 +70,8 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path)
 
             except subprocess.CalledProcessError as e:
                 print(f"\n❌ Failed to register seed ...{i}!")
+                if "len (is 0)" in e.stderr:
+                    print("💡 Hint: The funding wallet likely has no funds (0 UTXOs).")
                 print("Error Output:", e.stderr)
                 # We continue to the next one even if one fails
 
