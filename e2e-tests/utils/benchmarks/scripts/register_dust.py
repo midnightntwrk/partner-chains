@@ -70,6 +70,8 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path)
 
             except subprocess.CalledProcessError as e:
                 print(f"\n❌ Failed to register seed ...{i}!")
+                if "len (is 0)" in e.stderr:
+                    print("💡 Hint: The funding wallet likely has no funds (0 UTXOs).")
                 print("Error Output:", e.stderr)
                 # We continue to the next one even if one fails
 
@@ -82,6 +84,7 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path)
             time.sleep(2) # Check to remove
 
 def register_dust_addresses():
+    os.environ["MN_DONT_WATCH_PROGRESS"] = "false"
     parser = argparse.ArgumentParser(description="Register dust addresses.")
     parser.add_argument("--start", type=int, default=TARGET_START_INDEX, help="Starting seed to be registered")
     parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be registered")
@@ -99,7 +102,7 @@ def register_dust_addresses():
 
     total_wallets = end_index - start_index + 1
     # Determine the number of workers based on the minimum of available resources
-    num_workers = min(len(funding_seeds), len(RELAYS), os.cpu_count() or 1)
+    num_workers = min(len(funding_seeds), os.cpu_count() or 1)
     print(f"ℹ️  Using {num_workers} threads for execution.")
 
     if num_workers == 0:

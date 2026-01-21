@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 import subprocess
 import json
 import sys
@@ -7,11 +8,21 @@ import time
 import shutil
 import tempfile
 import concurrent.futures
+import argparse
 
 # Configuration
 TOOLKIT_CMD = "midnight-node-toolkit"
 RELAYS = [
-    "ferdie"
+    "ferdie",
+    "george",
+    "henry",
+    "iris",
+    "jack",
+    "paul",
+    "quinn",
+    "rita",
+    "sam",
+    "tom"
 ]
 START_INDEX = 10
 END_INDEX = 15
@@ -81,6 +92,13 @@ def get_balance(index):
         return 0
 
 def main():
+    parser = argparse.ArgumentParser(description="Check wallet balances.")
+    parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed index")
+    parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed index")
+    args = parser.parse_args()
+
+    start_index = args.start
+    end_index = args.end
     global DB_PATH
     if not os.path.exists(DB_PATH):
         print(f"⚠️  Warning: '{DB_PATH}' not found in current directory.")
@@ -95,14 +113,14 @@ def main():
             sys.exit(1)
 
     start_time = time.time()
-    print(f"🚀 Checking balances for seeds {START_INDEX} to {END_INDEX} across {len(RELAYS)} nodes...")
+    print(f"🚀 Checking balances for seeds {start_index} to {end_index} across {len(RELAYS)} nodes...")
 
-    num_seeds = END_INDEX - START_INDEX + 1
-    max_workers = 1
+    max_workers = os.cpu_count() or 1
+    print(f"ℹ️  Using {max_workers} threads.")
 
     total_sum = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(get_balance, i) for i in range(START_INDEX, END_INDEX + 1)]
+        futures = [executor.submit(get_balance, i) for i in range(start_index, end_index + 1)]
         for future in concurrent.futures.as_completed(futures):
             total_sum += future.result()
 

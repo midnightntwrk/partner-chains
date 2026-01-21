@@ -113,6 +113,7 @@ def process_chunk(chunk_start, chunk_end, funding_seed, node_url):
                 print(f"\n❌ Failed processing index {i}: {e}")
 
 def main():
+    os.environ["MN_DONT_WATCH_PROGRESS"] = "false"
     parser = argparse.ArgumentParser(description="Fund wallets.")
     parser.add_argument("--start", type=int, default=TARGET_START_INDEX, help="Starting seed to be funded")
     parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be funded")
@@ -130,7 +131,7 @@ def main():
 
     total_wallets = end_index - start_index + 1
     # Determine the number of workers based on the minimum of available resources
-    num_workers = min(len(source_seeds), len(RELAYS), os.cpu_count() or 1)
+    num_workers = min(len(source_seeds), os.cpu_count() or 1)
     print(f"ℹ️  Using {num_workers} threads for execution.")
 
     if num_workers == 0:
