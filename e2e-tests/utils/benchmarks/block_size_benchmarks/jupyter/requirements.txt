@@ -1,4 +1,0 @@
-matplotlib
-requests
-pandas
-seaborn
