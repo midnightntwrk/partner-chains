@@ -11,10 +11,10 @@ import concurrent.futures
 # Configuration
 TOOLKIT_CMD = "midnight-node-toolkit"
 RELAYS = [
-    "henry"
+    "ferdie"
 ]
-START_INDEX = 20
-END_INDEX = 29
+START_INDEX = 10
+END_INDEX = 15
 DB_PATH = "toolkit.db"
 
 def get_balance(index):

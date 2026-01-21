@@ -13,17 +13,24 @@ import argparse
 
 # Configuration
 TOOLKIT_CMD = "midnight-node-toolkit"
-SRC_URL = "ws://ferdie.node.sc.iog.io:9944"
-DEST_URL = "ws://ferdie.node.sc.iog.io:9944"
-SOURCE_SEEDS = [
-    "0000000000000000000000000000000000000000000000000000000000000001",
-    "0000000000000000000000000000000000000000000000000000000000000002",
-    "0000000000000000000000000000000000000000000000000000000000000003"
+RELAYS = [
+    "ferdie",
+    "george",
+    "henry",
+    "iris",
+    "jack",
+    "paul",
+    "quinn",
+    "rita",
+    "sam",
+    "tom"
 ]
+TARGET_START_INDEX = 6
+TARGET_END_INDEX = 10
+FUNDING_START_INDEX = 1
+FUNDING_END_INDEX = 3
 TOKEN_TYPE = "0000000000000000000000000000000000000000000000000000000000000000"
-AMOUNT = 1000000*10**6
-START_INDEX = 10
-END_INDEX = 99
+AMOUNT = 3000000*10**6
 DB_PATH = "toolkit.db"
 
 def run_command(cmd, cwd=None):
@@ -62,24 +69,28 @@ def get_wallet_address(index, cwd=None):
         print(f"\n❌ JSON output does not contain 'unshielded' field: {output}")
         sys.exit(1)
 
-def fund_address(address, funding_seed, cwd=None):
+def fund_address(address, funding_seed, node_url, cwd=None):
     """Funds the given address using the source seed."""
 
     cmd = [
         TOOLKIT_CMD, "generate-txs", "single-tx",
         "--source-seed", funding_seed,
-        "--src-url", SRC_URL,
+        "--src-url", node_url,
         "--unshielded-amount", str(AMOUNT),
         "--unshielded-token-type", TOKEN_TYPE,
         "--destination-address", address,
-        "--dest-url", DEST_URL
+        "--dest-url", node_url
     ]
 
     # Run the command (output is captured but we assume success if no error raised)
     run_command(cmd, cwd=cwd)
 
-def process_chunk(chunk_start, chunk_end, funding_seed):
-    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} with funding seed ...{funding_seed[-2:]}")
+def process_chunk(chunk_start, chunk_end, funding_seed, node_url):
+    try:
+        relay_name = node_url.split('//')[1].split('.')[0]
+    except IndexError:
+        relay_name = "unknown"
+    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} on {relay_name} with funding seed ...{funding_seed[-2:]}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Copy toolkit.db to temp_dir to avoid locking
@@ -93,7 +104,7 @@ def process_chunk(chunk_start, chunk_end, funding_seed):
                 print(f"✅ {addr}")
 
                 print(f"[Chunk {funding_seed[-2:]}] Funding {addr}...", end=" ", flush=True)
-                fund_address(addr, funding_seed, cwd=temp_dir)
+                fund_address(addr, funding_seed, node_url, cwd=temp_dir)
                 print("✅ Sent")
 
                 # Wait a bit between transactions to ensure nonce propagation
@@ -103,17 +114,28 @@ def process_chunk(chunk_start, chunk_end, funding_seed):
 
 def main():
     parser = argparse.ArgumentParser(description="Fund wallets.")
-    parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed to be funded")
-    parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed to be funded")
+    parser.add_argument("--start", type=int, default=TARGET_START_INDEX, help="Starting seed to be funded")
+    parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be funded")
+    parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
+    parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
     args = parser.parse_args()
 
     start_index = args.start
     end_index = args.end
+    funding_start = args.funding_start
+    funding_end = args.funding_end
+    source_seeds = [f"{i:064}" for i in range(funding_start, funding_end + 1)]
 
     print("🚀 Starting wallet creation and funding script...")
 
     total_wallets = end_index - start_index + 1
-    num_workers = len(SOURCE_SEEDS)
+    # Determine the number of workers based on the minimum of available resources
+    num_workers = min(len(source_seeds), len(RELAYS), os.cpu_count() or 1)
+    print(f"ℹ️  Using {num_workers} threads for execution.")
+
+    if num_workers == 0:
+        print("❌ No funding seeds or relays configured. Exiting.")
+        sys.exit(1)
     chunk_size = math.ceil(total_wallets / num_workers)
 
     start_time = time.time()
@@ -127,7 +149,10 @@ def main():
             if chunk_start > chunk_end:
                 break
 
-            futures.append(executor.submit(process_chunk, chunk_start, chunk_end, SOURCE_SEEDS[i]))
+            # Round-robin selection of relay node
+            relay_name = RELAYS[i % len(RELAYS)]
+            node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
+            futures.append(executor.submit(process_chunk, chunk_start, chunk_end, source_seeds[i], node_url))
 
         concurrent.futures.wait(futures)
 

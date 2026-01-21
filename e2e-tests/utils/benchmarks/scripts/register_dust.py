@@ -10,19 +10,31 @@ import argparse
 
 
 # Configuration
-START_INDEX = 10
-END_INDEX = 99
-NODE_URL = "ws://ferdie.node.sc.iog.io:9944"
+TARGET_START_INDEX = 11
+TARGET_END_INDEX = 499
+FUNDING_START_INDEX = 1
+FUNDING_END_INDEX = 3
+RELAYS = [
+    "ferdie",
+    "george",
+    "henry",
+    "iris",
+    "jack",
+    "paul",
+    "quinn",
+    "rita",
+    "sam",
+    "tom"
+]
 TOOLKIT_PATH = "midnight-node-toolkit"
 DB_PATH = "toolkit.db"
-FUNDING_SEEDS = [
-    "0000000000000000000000000000000000000000000000000000000000000001",
-    "0000000000000000000000000000000000000000000000000000000000000002",
-    "0000000000000000000000000000000000000000000000000000000000000003"
-]
 
 def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path):
-    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} with funding seed ...{funding_seed[-2:]}")
+    try:
+        relay_name = node_url.split('//')[1].split('.')[0]
+    except IndexError:
+        relay_name = "unknown"
+    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} on {relay_name} with funding seed ...{funding_seed[-2:]}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         if os.path.exists(DB_PATH):
@@ -71,17 +83,29 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path)
 
 def register_dust_addresses():
     parser = argparse.ArgumentParser(description="Register dust addresses.")
-    parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed to be registered")
-    parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed to be registered")
+    parser.add_argument("--start", type=int, default=TARGET_START_INDEX, help="Starting seed to be registered")
+    parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be registered")
+    parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
+    parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
     args = parser.parse_args()
 
     start_index = args.start
     end_index = args.end
+    funding_start = args.funding_start
+    funding_end = args.funding_end
+    funding_seeds = [f"{i:064}" for i in range(funding_start, funding_end + 1)]
 
     print(f"🚀 Starting dust registration for seeds ending in {start_index} to {end_index}...")
 
     total_wallets = end_index - start_index + 1
-    num_workers = len(FUNDING_SEEDS)
+    # Determine the number of workers based on the minimum of available resources
+    num_workers = min(len(funding_seeds), len(RELAYS), os.cpu_count() or 1)
+    print(f"ℹ️  Using {num_workers} threads for execution.")
+
+    if num_workers == 0:
+        print("❌ No funding seeds or relays configured. Exiting.")
+        sys.exit(1)
+
     chunk_size = math.ceil(total_wallets / num_workers)
 
     start_time = time.time()
@@ -95,7 +119,10 @@ def register_dust_addresses():
             if chunk_start > chunk_end:
                 break
 
-            futures.append(executor.submit(register_chunk, chunk_start, chunk_end, FUNDING_SEEDS[i], NODE_URL, TOOLKIT_PATH))
+            # Round-robin selection of relay node
+            relay_name = RELAYS[i % len(RELAYS)]
+            node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
+            futures.append(executor.submit(register_chunk, chunk_start, chunk_end, funding_seeds[i], node_url, TOOLKIT_PATH))
 
         concurrent.futures.wait(futures)
 
