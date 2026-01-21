@@ -84,6 +84,7 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path)
             time.sleep(2) # Check to remove
 
 def register_dust_addresses():
+    os.environ["MN_DONT_WATCH_PROGRESS"] = "false"
     parser = argparse.ArgumentParser(description="Register dust addresses.")
     parser.add_argument("--start", type=int, default=TARGET_START_INDEX, help="Starting seed to be registered")
     parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be registered")
