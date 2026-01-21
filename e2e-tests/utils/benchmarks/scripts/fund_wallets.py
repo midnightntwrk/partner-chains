@@ -130,7 +130,7 @@ def main():
 
     total_wallets = end_index - start_index + 1
     # Determine the number of workers based on the minimum of available resources
-    num_workers = min(len(source_seeds), len(RELAYS), os.cpu_count() or 1)
+    num_workers = min(len(source_seeds), os.cpu_count() or 1)
     print(f"ℹ️  Using {num_workers} threads for execution.")
 
     if num_workers == 0:
