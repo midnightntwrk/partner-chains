@@ -47,3 +47,6 @@ dev/local-environment-dynamic/configurations/partner-chains-nodes/*
 ogmios_client.log
 
 **/venv/
+
+# Benchmark reports
+e2e-tests/utils/benchmarks/block_size_benchmarks/block_size_analysis/block_size_analysis_*/

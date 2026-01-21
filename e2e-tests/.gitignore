@@ -17,3 +17,4 @@ utils/mempool_benchmarks/results/
 
 # Block size benchmark logs
 utils/block_size_benchmarks/logs/
+utils/block_size_benchmarks/block_size_benchmarks/block_size_analysis/block_size_analysis_*
