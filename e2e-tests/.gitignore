@@ -17,9 +17,13 @@ utils/mempool_benchmarks/results/
 
 # Block size benchmark logs
 utils/block_size_benchmarks/logs/
+utils/benchmarks/block_size_benchmarks/block_size_analysis/block_size_analysis_*
 
 # Jupyter notebook
 utils/benchmarks/jupyter/.ipynb_checkpoints
 utils/benchmarks/jupyter/*.png
 utils/benchmarks/jupyter/*.html
 utils/benchmarks/jupyter/*.pdf
+
+
+
