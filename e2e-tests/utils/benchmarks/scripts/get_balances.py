@@ -115,7 +115,8 @@ def main():
     start_time = time.time()
     print(f"🚀 Checking balances for seeds {start_index} to {end_index} across {len(RELAYS)} nodes...")
 
-    max_workers = os.cpu_count() or 1
+    total_wallets = end_index - start_index + 1
+    max_workers = min(total_wallets, os.cpu_count() or 1)
     print(f"ℹ️  Using {max_workers} threads.")
 
     total_sum = 0
