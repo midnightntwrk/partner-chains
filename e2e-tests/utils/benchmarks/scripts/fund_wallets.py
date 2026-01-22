@@ -85,26 +85,26 @@ def fund_address(address, funding_seed, node_url, cwd=None):
     # Run the command (output is captured but we assume success if no error raised)
     run_command(cmd, cwd=cwd)
 
-def process_chunk(chunk_start, chunk_end, funding_seed, node_url):
+def process_chunk(chunk_start, chunk_end, funding_seeds, node_url):
     try:
         relay_name = node_url.split('//')[1].split('.')[0]
     except IndexError:
         relay_name = "unknown"
-    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} on {relay_name} with funding seed ...{funding_seed[-2:]}")
+    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} on {relay_name}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Copy toolkit.db to temp_dir to avoid locking
         if os.path.exists(DB_PATH):
             shutil.copy(DB_PATH, os.path.join(temp_dir, "toolkit.db"))
 
-        for i in range(chunk_start, chunk_end + 1):
+        for i, seed in zip(range(chunk_start, chunk_end + 1), funding_seeds):
             try:
-                print(f"[Chunk {funding_seed[-2:]}] Generating wallet {i}...", end=" ", flush=True)
+                print(f"[Chunk {seed[-4:]}] Generating wallet {i}...", end=" ", flush=True)
                 addr = get_wallet_address(i, cwd=temp_dir)
                 print(f"✅ {addr}")
 
-                print(f"[Chunk {funding_seed[-2:]}] Funding {addr}...", end=" ", flush=True)
-                fund_address(addr, funding_seed, node_url, cwd=temp_dir)
+                print(f"[Chunk {seed[-4:]}] Funding {addr}...", end=" ", flush=True)
+                fund_address(addr, seed, node_url, cwd=temp_dir)
                 print("✅ Sent")
 
                 # Wait a bit between transactions to ensure nonce propagation
@@ -153,7 +153,13 @@ def main():
             # Round-robin selection of relay node
             relay_name = RELAYS[i % len(RELAYS)]
             node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
-            futures.append(executor.submit(process_chunk, chunk_start, chunk_end, source_seeds[i], node_url))
+
+            # Calculate which seeds belong to this chunk
+            # We use modulo to cycle seeds if there are fewer seeds than wallets
+            chunk_len = chunk_end - chunk_start + 1
+            chunk_seeds = [source_seeds[(chunk_start - start_index + k) % len(source_seeds)] for k in range(chunk_len)]
+
+            futures.append(executor.submit(process_chunk, chunk_start, chunk_end, chunk_seeds, node_url))
 
         concurrent.futures.wait(futures)
 
