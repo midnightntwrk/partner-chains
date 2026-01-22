@@ -10,8 +10,8 @@ import argparse
 
 
 # Configuration
-TARGET_START_INDEX = 11
-TARGET_END_INDEX = 499
+TARGET_START_INDEX = 500
+TARGET_END_INDEX = 500
 FUNDING_START_INDEX = 1
 FUNDING_END_INDEX = 3
 RELAYS = [
@@ -29,7 +29,7 @@ RELAYS = [
 TOOLKIT_PATH = "midnight-node-toolkit"
 DB_PATH = "toolkit.db"
 
-def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path):
+def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path, verbose=False):
     try:
         relay_name = node_url.split('//')[1].split('.')[0]
     except IndexError:
@@ -56,6 +56,9 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path)
                 "--funding-seed", funding_seed
             ]
 
+            if verbose:
+                print(f"CMD: {' '.join(cmd)}")
+
             try:
                 # Run the command
                 result = subprocess.run(
@@ -66,10 +69,15 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path)
                     cwd=temp_dir
                 )
                 print(f"✅ Success (Seed ...{i})")
-                # print(result.stdout) # Uncomment if you want to see the tx hash
+                if verbose:
+                    print(f"STDOUT:\n{result.stdout}")
+                    print(f"STDERR:\n{result.stderr}")
 
             except subprocess.CalledProcessError as e:
                 print(f"\n❌ Failed to register seed ...{i}!")
+                if verbose:
+                    print(f"STDOUT:\n{e.stdout}")
+                    print(f"STDERR:\n{e.stderr}")
                 if "len (is 0)" in e.stderr:
                     print("💡 Hint: The funding wallet likely has no funds (0 UTXOs).")
                 print("Error Output:", e.stderr)
@@ -90,6 +98,7 @@ def register_dust_addresses():
     parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be registered")
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
 
     start_index = args.start
@@ -102,7 +111,7 @@ def register_dust_addresses():
 
     total_wallets = end_index - start_index + 1
     # Determine the number of workers based on the minimum of available resources
-    num_workers = min(len(funding_seeds), os.cpu_count() or 1)
+    num_workers = min(total_wallets, len(funding_seeds), os.cpu_count() or 1)
     print(f"ℹ️  Using {num_workers} threads for execution.")
 
     if num_workers == 0:
@@ -125,7 +134,7 @@ def register_dust_addresses():
             # Round-robin selection of relay node
             relay_name = RELAYS[i % len(RELAYS)]
             node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
-            futures.append(executor.submit(register_chunk, chunk_start, chunk_end, funding_seeds[i], node_url, TOOLKIT_PATH))
+            futures.append(executor.submit(register_chunk, chunk_start, chunk_end, funding_seeds[i], node_url, TOOLKIT_PATH, args.verbose))
 
         concurrent.futures.wait(futures)
 
