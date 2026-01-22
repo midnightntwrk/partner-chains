@@ -30,7 +30,6 @@ TARGET_END_INDEX = 10
 FUNDING_START_INDEX = 1
 FUNDING_END_INDEX = 3
 TOKEN_TYPE = "0000000000000000000000000000000000000000000000000000000000000000"
-AMOUNT = 3000000*10**6
 DB_PATH = "toolkit.db"
 
 def run_command(cmd, cwd=None):
@@ -119,7 +118,11 @@ def main():
     parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be funded")
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
+    parser.add_argument("--night-amount", type=int, default=3000000, help="Amount of NIGHT tokens to fund")
     args = parser.parse_args()
+
+    global AMOUNT
+    AMOUNT = args.night_amount * 10**6
 
     start_index = args.start
     end_index = args.end
