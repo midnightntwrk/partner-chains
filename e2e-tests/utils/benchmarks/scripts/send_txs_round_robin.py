@@ -123,7 +123,9 @@ def main():
     print(f"🚀 Starting ring transaction script ({START_INDEX} -> {START_INDEX+1} -> ... -> {END_INDEX} -> {START_INDEX})...")
    
     num_txs = END_INDEX - START_INDEX + 1
-    max_workers = min(os.cpu_count() or 1, num_txs)
+    cpu_count = os.cpu_count() or 1
+    max_threads = max(1, int(cpu_count * 0.9))
+    max_workers = min(max_threads, num_txs)
     print(f"ℹ️  Using {max_workers} threads for execution.")
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process_transfer, i, START_INDEX, END_INDEX) for i in range(START_INDEX, END_INDEX + 1)]

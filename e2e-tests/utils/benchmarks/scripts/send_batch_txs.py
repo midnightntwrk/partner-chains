@@ -143,7 +143,9 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     if args.workers:
         max_workers = args.workers
     else:
-        max_workers = min(os.cpu_count() or 1, len(files))
+        cpu_count = os.cpu_count() or 1
+        max_threads = max(1, int(cpu_count * 0.9))
+        max_workers = min(max_threads, len(files))
     print(f"ℹ️  Using {max_workers} threads for execution.")
 
     results = []

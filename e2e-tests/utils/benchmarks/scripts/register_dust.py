@@ -109,7 +109,9 @@ def register_dust_addresses():
 
     total_wallets = end_index - start_index + 1
     # Determine the number of workers based on the minimum of available resources
-    num_workers = min(total_wallets, len(funding_seeds), os.cpu_count() or 1)
+    cpu_count = os.cpu_count() or 1
+    max_threads = max(1, int(cpu_count * 0.9))
+    num_workers = min(total_wallets, len(funding_seeds), max_threads)
     print(f"ℹ️  Using {num_workers} threads for execution.")
 
     if num_workers == 0:
