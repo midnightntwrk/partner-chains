@@ -4,8 +4,16 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
+import os
 
 import pandas as pd
+import matplotlib.pyplot as plt
+try:
+    import seaborn as sns
+except Exception:  # make seaborn optional
+    sns = None
+from matplotlib.dates import DateFormatter
+import numpy as np
 
 
 @dataclass
@@ -89,12 +97,16 @@ def to_dataframe(points: List[MempoolPoint]) -> pd.DataFrame:
             "reverified": p.reverified_txs,
         })
     df = pd.DataFrame(rows)
-    df.sort_values(["node", "timestamp"], inplace=True)
+    if not df.empty:
+        df.sort_values(["node", "timestamp"], inplace=True)
     return df
 
 
 def resample_metrics(df: pd.DataFrame, window_ms: int) -> pd.DataFrame:
     # Resample per node
+    if df.empty or "node" not in df.columns:
+        return pd.DataFrame(columns=["timestamp", "ready", "future", "mempool_len", "admission_tps", "node"])
+    
     all_nodes = []
     for node, group in df.groupby("node"):
         g = group.set_index("timestamp").copy()
@@ -137,6 +149,12 @@ def summarize(resampled_df: pd.DataFrame, original_df: pd.DataFrame) -> str:
         "  Reverified    - Total count of transactions reverified after chain reorganization",
         ""
     ]
+    
+    if resampled_df.empty or "node" not in resampled_df.columns:
+        lines.append("No mempool data available.")
+        lines.append("")
+        return "\n".join(lines)
+    
     for node, group in resampled_df.groupby("node"):
         g = group.dropna(subset=["ready", "future"])
         avg_ready = g["ready"].mean() if not g.empty else 0
@@ -171,6 +189,16 @@ def generate_insights(resampled_df: pd.DataFrame, original_df: pd.DataFrame) -> 
     insights = []
     insights.append("=== KEY INSIGHTS ===")
     insights.append("")
+    
+    if resampled_df.empty or "node" not in resampled_df.columns:
+        insights.append("No mempool events found in the analyzed time period.")
+        insights.append("")
+        insights.append("This could mean:")
+        insights.append("  - The node had no transaction activity during this period")
+        insights.append("  - The node's logs don't contain mempool events (check log verbosity)")
+        insights.append("  - The time range selected had no recorded mempool activity")
+        insights.append("")
+        return "\n".join(insights)
     
     for node, group in resampled_df.groupby("node"):
         insights.append(f"Node: {node}")
@@ -279,10 +307,104 @@ def generate_insights(resampled_df: pd.DataFrame, original_df: pd.DataFrame) -> 
 
 def export_csv(df: pd.DataFrame, output_path: str):
     """Export resampled dataframe to CSV for graphing."""
+    if df.empty:
+        # Create empty CSV with headers
+        df.to_csv(output_path, index=False)
+        return
+    
     # Format timestamp for CSV
     df_export = df.copy()
-    df_export['timestamp'] = df_export['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S.%f')
+    if 'timestamp' in df_export.columns and not df_export['timestamp'].empty:
+        df_export['timestamp'] = df_export['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S.%f')
     df_export.to_csv(output_path, index=False)
+
+
+def _ensure_dir(path: str):
+    os.makedirs(path, exist_ok=True)
+
+
+def _safe_time_bounds(df: pd.DataFrame) -> Tuple[Optional[pd.Timestamp], Optional[pd.Timestamp]]:
+    if df.empty:
+        return None, None
+    ts = df.get('timestamp')
+    if ts is None or ts.empty:
+        return None, None
+    return pd.to_datetime(ts.min()), pd.to_datetime(ts.max())
+
+
+def plot_throughput_and_mempool(resampled_df: pd.DataFrame, original_df: pd.DataFrame, out_png: str):
+    """Plot cumulative processed (proxy from validated events) and mempool depth per node.
+    Saves a PNG to out_png. This mirrors the style from the notebook but uses what we have.
+    """
+    if resampled_df.empty:
+        print("No data to plot; skipping graph generation.")
+        return
+
+    # Prepare time window
+    start, end = _safe_time_bounds(resampled_df)
+    if start is None or end is None or start == end:
+        print("Insufficient time window to plot; skipping graph generation.")
+        return
+
+    # Compute a per-second proxy TPS from admission_tps across nodes
+    df = resampled_df.copy()
+    df.sort_values('timestamp', inplace=True)
+
+    # Aggregate per timestamp across nodes
+    agg = df.groupby('timestamp', as_index=True).agg({
+        'admission_tps': 'sum',
+    }).fillna(0)
+
+    # Instantaneous TPS and cumulative processed proxy
+    tps_per_second = agg['admission_tps'].resample('1s').mean().fillna(0)
+    cumulative_processed = tps_per_second.cumsum()
+
+    avg_tps = (cumulative_processed.tail(1).values[0] / max((cumulative_processed.index[-1] - cumulative_processed.index[0]).total_seconds(), 1)) if len(cumulative_processed) > 1 else 0.0
+    peak_tps = float(tps_per_second.max()) if not tps_per_second.empty else 0.0
+
+    # Plot
+    if sns:
+        sns.set_style('whitegrid')
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
+
+    # Plot 1: cumulative processed proxy with average line
+    ax1.plot(cumulative_processed.index, cumulative_processed.values, color='darkblue', linewidth=2, label='Total Processed (proxy)')
+    ax1.plot([start, end], [0, cumulative_processed.values[-1] if len(cumulative_processed)>0 else 0], color='red', linestyle='--', alpha=0.7, label=f'Avg TPS (~{avg_tps:.2f})')
+    ax1.set_title(f'Throughput Analysis | Avg TPS: {avg_tps:.2f} | Peak TPS: {peak_tps:.2f}')
+    ax1.set_ylabel('Cumulative (proxy)')
+    ax1.legend(loc='upper left')
+
+    # Plot 2: mempool depth by node (steps)
+    # Use mempool_len if available; otherwise ready as fallback
+    ycol = 'mempool_len' if 'mempool_len' in df.columns else 'ready'
+    df_sorted = df.sort_values('timestamp')
+    drew = False
+    if sns:
+        try:
+            sns.lineplot(data=df_sorted, x='timestamp', y=ycol, hue='node', ax=ax2, drawstyle='steps-post')
+            drew = True
+        except Exception:
+            drew = False
+    if not drew:
+        # Fallback if seaborn missing or drawstyle unsupported
+        for n, g in df_sorted.groupby('node'):
+            ax2.step(g['timestamp'], g[ycol], where='post', label=n)
+        ax2.legend(loc='upper right')
+
+    ax2.set_title('Mempool Depth')
+    ax2.set_ylabel('Pending Txs')
+    ax2.set_xlabel('Time (UTC)')
+
+    # Formatting
+    ax2.legend(loc='upper right')
+    ax1.xaxis.set_major_formatter(DateFormatter('%H:%M:%S'))
+    plt.xlim(start, end)
+    plt.tight_layout()
+
+    _ensure_dir(os.path.dirname(out_png) or '.')
+    plt.savefig(out_png, dpi=150)
+    plt.close(fig)
+    print(f"Graph saved: {out_png}")
 
 
 def main():
@@ -313,6 +435,14 @@ def main():
     csv_path = out_path.rsplit('.', 1)[0] + '_timeseries.csv'
     export_csv(res, csv_path)
     print(f"Time-series CSV saved to: {csv_path}")
+
+    # Generate PNGs next to analysis file
+    base = out_path.rsplit('.', 1)[0]
+    png_path = base + '_mempool.png'
+    try:
+        plot_throughput_and_mempool(res, df, png_path)
+    except Exception as e:
+        print(f"Plotting failed: {e}")
 
 
 if __name__ == "__main__":
