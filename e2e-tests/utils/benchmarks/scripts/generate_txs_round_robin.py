@@ -30,6 +30,7 @@ START_INDEX = 1
 END_INDEX = 499
 DB_PATH = "toolkit.db"
 NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
+DELAY = 0.25
 
 
 def run_command(cmd, cwd=None, verbose=False, exit_on_error=True):
@@ -116,7 +117,7 @@ def send_transaction(source_index, dest_address, amount_val, node_url_pattern, s
             print(f"⚠️  Failed on {node_url}, trying next node...")
             time.sleep(0.5)
 
-def process_transfer(i, start_index, end_index, node_url_pattern, save_to_file, verbose):
+def process_transfer(i, start_index, end_index, node_url_pattern, save_to_file, verbose, delay):
     """Handles the transfer for a single index in the ring."""
     try:
         # Calculate target index (circle back to start at the end)
@@ -136,6 +137,8 @@ def process_transfer(i, start_index, end_index, node_url_pattern, save_to_file, 
             exec_start = time.time()
             dest_addr = get_address_for_seed_index(target_index, cwd=temp_dir, verbose=verbose)
             send_transaction(i, dest_addr, amount_val, node_url_pattern, save_to_file=save_to_file, cwd=temp_dir, verbose=verbose)
+            if delay > 0:
+                time.sleep(delay)
             exec_time = time.time() - exec_start
 
         action = "Saved" if save_to_file else "Sent"
@@ -151,6 +154,7 @@ def main():
     parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed to generate txs")
     parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed to generate txs")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
+    parser.add_argument("--delay", type=float, default=DELAY, help="Delay in seconds after each transaction generation.")
     args = parser.parse_args()
     save_to_file = not args.submit
     verbose = args.verbose
@@ -186,7 +190,7 @@ def main():
     results = []
     failed_seeds = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_seed = {executor.submit(process_transfer, i, start_index, end_index, args.node_url, save_to_file, verbose): i for i in range(start_index, end_index + 1)}
+        future_to_seed = {executor.submit(process_transfer, i, start_index, end_index, args.node_url, save_to_file, verbose, args.delay): i for i in range(start_index, end_index + 1)}
         for future in concurrent.futures.as_completed(future_to_seed):
             seed = future_to_seed[future]
             try:
