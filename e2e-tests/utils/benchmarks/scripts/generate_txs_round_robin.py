@@ -182,17 +182,25 @@ def main():
     max_workers = min(os.cpu_count() or 1, num_txs)
     print(f"ℹ️  Using {max_workers} threads for execution.")
     results = []
+    failed_seeds = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(process_transfer, i, start_index, end_index, args.node_url, save_to_file, verbose) for i in range(start_index, end_index + 1)]
-        for future in concurrent.futures.as_completed(futures):
+        future_to_seed = {executor.submit(process_transfer, i, start_index, end_index, args.node_url, save_to_file, verbose): i for i in range(start_index, end_index + 1)}
+        for future in concurrent.futures.as_completed(future_to_seed):
+            seed = future_to_seed[future]
             try:
-                results.append(future.result())
+                success = future.result()
+                results.append(success)
+                if not success:
+                    failed_seeds.append(seed)
             except (SystemExit, Exception):
                 results.append(False)
+                failed_seeds.append(seed)
 
     end_time = time.time()
     print("\n🎉 Batch processing complete.")
     print(f"Valid: {results.count(True)}, Invalid: {results.count(False)}")
+    if failed_seeds:
+        print(f"❌ Failed seeds: {sorted(failed_seeds)}")
     print(f"⏱️ Total execution time: {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
