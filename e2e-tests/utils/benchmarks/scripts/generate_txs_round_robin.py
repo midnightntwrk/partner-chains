@@ -31,6 +31,7 @@ END_INDEX = 499
 DB_PATH = "toolkit.db"
 NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
 DELAY = 0.25
+MAX_RETRIES = 5
 
 
 def run_command(cmd, cwd=None, verbose=False, exit_on_error=True):
@@ -74,14 +75,15 @@ def get_address_for_seed_index(index, cwd=None, verbose=False):
         print(f"\n❌ Failed to parse address for seed index {index}")
         sys.exit(1)
 
-def send_transaction(source_index, dest_address, amount_val, node_url_pattern, save_to_file=True, cwd=None, verbose=False):
+def send_transaction(source_index, dest_address, amount_val, node_url_pattern, max_retries, save_to_file=True, cwd=None, verbose=False):
     """Sends a transaction from source seed index to destination address."""
     source_seed = f"{source_index:064}"
     amount = str(amount_val)
 
     start_relay_idx = source_index % len(RELAYS)
+    num_attempts = min(len(RELAYS), max_retries)
 
-    for i in range(len(RELAYS)):
+    for i in range(num_attempts):
         relay_idx = (start_relay_idx + i) % len(RELAYS)
         relay_name = RELAYS[relay_idx]
         if "ferdie" in node_url_pattern:
@@ -108,16 +110,21 @@ def send_transaction(source_index, dest_address, amount_val, node_url_pattern, s
             cmd.extend(["--dest-url", node_url])
 
         try:
-            last_attempt = (i == len(RELAYS) - 1)
+            last_attempt = (i == num_attempts - 1)
             run_command(cmd, cwd=cwd, verbose=verbose, exit_on_error=last_attempt)
             if i > 0:
-                print(f"✅ Retry successful on {relay_name}")
+                print(f"✅ [Seed {source_index}] Retry successful on {relay_name}")
             return
-        except subprocess.CalledProcessError:
-            print(f"⚠️  Failed on {node_url}, trying next node...")
+        except subprocess.CalledProcessError as e:
+            # Stop retrying if the wallet has no funds or panic occurs
+            if "There are no fundings" in e.stderr or "PanicError" in e.stderr:
+                print(f"❌ [Seed {source_index}] Fatal error on {relay_name}: Insufficient funds or Panic.")
+                raise e
+
+            print(f"⚠️  [Seed {source_index}] Failed on {node_url}, trying next node...")
             time.sleep(0.5)
 
-def process_transfer(i, start_index, end_index, node_url_pattern, save_to_file, verbose, delay):
+def process_transfer(i, start_index, end_index, node_url_pattern, max_retries, save_to_file, verbose, delay):
     """Handles the transfer for a single index in the ring."""
     try:
         # Calculate target index (circle back to start at the end)
@@ -136,7 +143,7 @@ def process_transfer(i, start_index, end_index, node_url_pattern, save_to_file, 
 
             exec_start = time.time()
             dest_addr = get_address_for_seed_index(target_index, cwd=temp_dir, verbose=verbose)
-            send_transaction(i, dest_addr, amount_val, node_url_pattern, save_to_file=save_to_file, cwd=temp_dir, verbose=verbose)
+            send_transaction(i, dest_addr, amount_val, node_url_pattern, max_retries, save_to_file=save_to_file, cwd=temp_dir, verbose=verbose)
             if delay > 0:
                 time.sleep(delay)
             exec_time = time.time() - exec_start
@@ -155,6 +162,7 @@ def main():
     parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed to generate txs")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     parser.add_argument("--delay", type=float, default=DELAY, help="Delay in seconds after each transaction generation.")
+    parser.add_argument("--max-retries", type=int, default=MAX_RETRIES, help="Maximum number of attempts per transaction.")
     args = parser.parse_args()
     save_to_file = not args.submit
     verbose = args.verbose
@@ -190,7 +198,7 @@ def main():
     results = []
     failed_seeds = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_seed = {executor.submit(process_transfer, i, start_index, end_index, args.node_url, save_to_file, verbose, args.delay): i for i in range(start_index, end_index + 1)}
+        future_to_seed = {executor.submit(process_transfer, i, start_index, end_index, args.node_url, args.max_retries, save_to_file, verbose, args.delay): i for i in range(start_index, end_index + 1)}
         for future in concurrent.futures.as_completed(future_to_seed):
             seed = future_to_seed[future]
             try:

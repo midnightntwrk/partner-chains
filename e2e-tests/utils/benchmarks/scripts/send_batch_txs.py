@@ -151,14 +151,33 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     print(f"ℹ️  Using {max_workers} threads for execution.")
 
     results = []
+    failed_seeds = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay) for i, tx_file in enumerate(files, 1)]
-        for future in concurrent.futures.as_completed(futures):
-            results.append(future.result())
+        future_to_file = {executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay): tx_file for i, tx_file in enumerate(files, 1)}
+        for future in concurrent.futures.as_completed(future_to_file):
+            tx_file = future_to_file[future]
+            try:
+                res = future.result()
+                results.append(res)
+                if res is False:
+                    basename = os.path.basename(tx_file)
+                    seed = os.path.splitext(basename)[0].split('_')[-1]
+                    failed_seeds.append(seed)
+            except Exception:
+                results.append(False)
+                basename = os.path.basename(tx_file)
+                seed = os.path.splitext(basename)[0].split('_')[-1]
+                failed_seeds.append(seed)
 
     end_time = time.time()
     print("\n🎉 Batch submission complete.")
     print(f"Valid: {results.count(True)}, Invalid: {results.count(False)}, Temporarily Banned: {results.count('Banned')}")
+    if failed_seeds:
+        try:
+            failed_seeds.sort(key=int)
+        except ValueError:
+            failed_seeds.sort()
+        print(f"❌ Failed seeds: {failed_seeds}")
     print(f"⏱️ Total execution time: {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
