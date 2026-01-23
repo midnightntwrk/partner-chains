@@ -23,14 +23,16 @@ RELAYS = [
     "tom"
 ]
 NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
+MAX_RETRIES = 5
 
-def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, verbose=False, max_workers=1):
+def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, max_retries, verbose=False, max_workers=1):
     # Ensure absolute path for the source file since we change CWD
     abs_tx_file = os.path.abspath(tx_file)
 
     start_relay_idx = i % len(RELAYS)
+    num_attempts = min(len(RELAYS), max_retries)
 
-    for r_offset in range(len(RELAYS)):
+    for r_offset in range(num_attempts):
         relay_idx = (start_relay_idx + r_offset) % len(RELAYS)
         relay_name = RELAYS[relay_idx]
         if "ferdie" in node_url_pattern:
@@ -93,7 +95,7 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, ve
             return True
 
         except subprocess.CalledProcessError as e:
-            if r_offset == len(RELAYS) - 1:
+            if r_offset == num_attempts - 1:
                 print(f"\n❌ Failed to submit {tx_file} to {relay_name}!")
                 print("Error Output:", e.stderr)
                 return False
@@ -111,6 +113,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("--workers", type=int, help="Number of concurrent workers")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
+    parser.add_argument("--max-retries", type=int, default=MAX_RETRIES, help="Maximum number of attempts per transaction.")
     args = parser.parse_args()
 
     start_time = time.time()
@@ -145,7 +148,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
 
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, args.node_url, verbose=args.verbose, max_workers=max_workers) for i, tx_file in enumerate(files, 1)]
+        futures = [executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers) for i, tx_file in enumerate(files, 1)]
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())
 
