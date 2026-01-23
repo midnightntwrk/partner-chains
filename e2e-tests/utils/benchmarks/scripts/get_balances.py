@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
 import subprocess
 import json
 import sys
@@ -24,16 +23,21 @@ RELAYS = [
     "sam",
     "tom"
 ]
-START_INDEX = 10
-END_INDEX = 15
+START_INDEX = 1
+END_INDEX = 10
 DB_PATH = "toolkit.db"
+NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
 
-def get_balance(index):
+
+def get_balance(index, node_url_pattern):
     """Gets the balance for a given seed index."""
     seed = f"{index:064}"
 
     relay_name = RELAYS[index % len(RELAYS)]
-    node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
+    if "ferdie" in node_url_pattern:
+        node_url = node_url_pattern.replace("ferdie", relay_name)
+    else:
+        node_url = node_url_pattern
 
     cmd = [
         TOOLKIT_CMD, "show-wallet",
@@ -95,6 +99,7 @@ def main():
     parser = argparse.ArgumentParser(description="Check wallet balances.")
     parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed index")
     parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed index")
+    parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
 
     start_index = args.start
@@ -121,7 +126,7 @@ def main():
 
     total_sum = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(get_balance, i) for i in range(start_index, end_index + 1)]
+        futures = [executor.submit(get_balance, i, args.node_url) for i in range(start_index, end_index + 1)]
         for future in concurrent.futures.as_completed(futures):
             total_sum += future.result()
 

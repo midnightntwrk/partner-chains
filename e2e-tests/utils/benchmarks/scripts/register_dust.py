@@ -10,8 +10,8 @@ import argparse
 
 
 # Configuration
-TARGET_START_INDEX = 500
-TARGET_END_INDEX = 500
+TARGET_START_INDEX = 4
+TARGET_END_INDEX = 499
 FUNDING_START_INDEX = 1
 FUNDING_END_INDEX = 3
 RELAYS = [
@@ -28,6 +28,8 @@ RELAYS = [
 ]
 TOOLKIT_PATH = "midnight-node-toolkit"
 DB_PATH = "toolkit.db"
+NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
+
 
 def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path, verbose=False):
     try:
@@ -42,7 +44,6 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path,
 
         for i in range(chunk_start, chunk_end + 1):
             # Format the seed: Pad '20' to '000...00020' (64 chars total)
-            # We treat '20' as the literal suffix the user requested
             wallet_seed = f"{i:064}"
 
             print(f"[Chunk {funding_seed[-2:]}] Registering dust for seed ...{i}...")
@@ -60,7 +61,6 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path,
                 print(f"CMD: {' '.join(cmd)}")
 
             try:
-                # Run the command
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -87,9 +87,6 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path,
                 print(f"\n❌ Error: Could not find '{toolkit_path}'.")
                 sys.exit(1)
 
-            # Wait 2 seconds between registrations to ensure the funding account's
-            # previous transaction is processed/propagated (prevents nonce/dust errors)
-            time.sleep(2) # Check to remove
 
 def register_dust_addresses():
     os.environ["MN_DONT_WATCH_PROGRESS"] = "false"
@@ -99,6 +96,7 @@ def register_dust_addresses():
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by other relay names if present.")
     args = parser.parse_args()
 
     start_index = args.start
@@ -133,7 +131,10 @@ def register_dust_addresses():
 
             # Round-robin selection of relay node
             relay_name = RELAYS[i % len(RELAYS)]
-            node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
+            if "ferdie" in args.node_url:
+                node_url = args.node_url.replace("ferdie", relay_name)
+            else:
+                node_url = args.node_url
             futures.append(executor.submit(register_chunk, chunk_start, chunk_end, funding_seeds[i], node_url, TOOLKIT_PATH, args.verbose))
 
         concurrent.futures.wait(futures)

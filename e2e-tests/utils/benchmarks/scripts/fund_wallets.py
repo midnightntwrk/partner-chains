@@ -25,12 +25,14 @@ RELAYS = [
     "sam",
     "tom"
 ]
-TARGET_START_INDEX = 6
+TARGET_START_INDEX = 4
 TARGET_END_INDEX = 10
 FUNDING_START_INDEX = 1
 FUNDING_END_INDEX = 3
 TOKEN_TYPE = "0000000000000000000000000000000000000000000000000000000000000000"
 DB_PATH = "toolkit.db"
+NODE_URL = "ws://localhost:9944" #"ws://ferdie.node.sc.iog.io:9944"
+FUNDING_AMOUNT = 3000000
 
 def run_command(cmd, cwd=None):
     """Runs a command and returns stdout if successful, exits otherwise."""
@@ -118,7 +120,8 @@ def main():
     parser.add_argument("--end", type=int, default=TARGET_END_INDEX, help="Ending seed to be funded")
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
-    parser.add_argument("--night-amount", type=int, default=3000000, help="Amount of NIGHT tokens to fund")
+    parser.add_argument("--night-amount", type=int, default=FUNDING_AMOUNT, help="Amount of NIGHT tokens to fund")
+    parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
 
     global AMOUNT
@@ -155,7 +158,10 @@ def main():
 
             # Round-robin selection of relay node
             relay_name = RELAYS[i % len(RELAYS)]
-            node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
+            if "ferdie" in args.node_url:
+                node_url = args.node_url.replace("ferdie", relay_name)
+            else:
+                node_url = args.node_url
 
             # Calculate which seeds belong to this chunk
             # We use modulo to cycle seeds if there are fewer seeds than wallets

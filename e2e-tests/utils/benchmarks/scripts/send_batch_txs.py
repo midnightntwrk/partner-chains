@@ -22,8 +22,9 @@ RELAYS = [
     "sam",
     "tom"
 ]
+NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
 
-def submit_single_tx(i, tx_file, total_files, toolkit_path, verbose=False, max_workers=1):
+def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, verbose=False, max_workers=1):
     # Ensure absolute path for the source file since we change CWD
     abs_tx_file = os.path.abspath(tx_file)
 
@@ -32,12 +33,14 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, verbose=False, max_w
     for r_offset in range(len(RELAYS)):
         relay_idx = (start_relay_idx + r_offset) % len(RELAYS)
         relay_name = RELAYS[relay_idx]
-        dest_url = f"ws://{relay_name}.node.sc.iog.io:9944"
+        if "ferdie" in node_url_pattern:
+            dest_url = node_url_pattern.replace("ferdie", relay_name)
+        else:
+            dest_url = node_url_pattern
 
         cmd = [
             toolkit_path, "generate-txs", "send",
             "--src-file", abs_tx_file,
-            # "--fetch-cache", "inmemory",
             "--dest-url", dest_url
         ]
 
@@ -95,10 +98,11 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, verbose=False, max_w
                 print("Error Output:", e.stderr)
                 return False
             else:
-                print(f"⚠️  Failed to submit {tx_file} to {relay_name}, trying next node...")
+                print(f"⚠️  Failed to submit {tx_file} to {dest_url}, trying next node...")
+                time.sleep(0.5)
 
 def submit_transactions(toolkit_path="midnight-node-toolkit"):
-    # Disable progress watching for all subprocesses
+    # Disable watching for txs to finalize
     os.environ["MN_DONT_WATCH_PROGRESS"] = "true"
 
     parser = argparse.ArgumentParser(description="Submit batch transactions.")
@@ -106,6 +110,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     parser.add_argument("--end", type=int, help="End index")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("--workers", type=int, help="Number of concurrent workers")
+    parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
 
     start_time = time.time()
@@ -140,7 +145,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
 
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, verbose=args.verbose, max_workers=max_workers) for i, tx_file in enumerate(files, 1)]
+        futures = [executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, args.node_url, verbose=args.verbose, max_workers=max_workers) for i, tx_file in enumerate(files, 1)]
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())
 

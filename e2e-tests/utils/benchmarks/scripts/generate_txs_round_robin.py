@@ -26,9 +26,11 @@ RELAYS = [
 TOOLKIT_CMD = "midnight-node-toolkit"
 TOKEN_TYPE = "0000000000000000000000000000000000000000000000000000000000000000"
 BASE_AMOUNT = 1000000
-START_INDEX = 10
+START_INDEX = 1
 END_INDEX = 499
 DB_PATH = "toolkit.db"
+NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
+
 
 def run_command(cmd, cwd=None, verbose=False, exit_on_error=True):
     """Runs a command and returns stdout if successful, exits otherwise."""
@@ -71,7 +73,7 @@ def get_address_for_seed_index(index, cwd=None, verbose=False):
         print(f"\n❌ Failed to parse address for seed index {index}")
         sys.exit(1)
 
-def send_transaction(source_index, dest_address, amount_val, save_to_file=True, cwd=None, verbose=False):
+def send_transaction(source_index, dest_address, amount_val, node_url_pattern, save_to_file=True, cwd=None, verbose=False):
     """Sends a transaction from source seed index to destination address."""
     source_seed = f"{source_index:064}"
     amount = str(amount_val)
@@ -81,7 +83,10 @@ def send_transaction(source_index, dest_address, amount_val, save_to_file=True, 
     for i in range(len(RELAYS)):
         relay_idx = (start_relay_idx + i) % len(RELAYS)
         relay_name = RELAYS[relay_idx]
-        node_url = f"ws://{relay_name}.node.sc.iog.io:9944"
+        if "ferdie" in node_url_pattern:
+            node_url = node_url_pattern.replace("ferdie", relay_name)
+        else:
+            node_url = node_url_pattern
 
         cmd = [
             TOOLKIT_CMD, "generate-txs", "single-tx",
@@ -108,9 +113,10 @@ def send_transaction(source_index, dest_address, amount_val, save_to_file=True, 
                 print(f"✅ Retry successful on {relay_name}")
             return
         except subprocess.CalledProcessError:
-            print(f"⚠️  Failed on {relay_name}, trying next node...")
+            print(f"⚠️  Failed on {node_url}, trying next node...")
+            time.sleep(0.5)
 
-def process_transfer(i, start_index, end_index, save_to_file, verbose):
+def process_transfer(i, start_index, end_index, node_url_pattern, save_to_file, verbose):
     """Handles the transfer for a single index in the ring."""
     try:
         # Calculate target index (circle back to start at the end)
@@ -129,7 +135,7 @@ def process_transfer(i, start_index, end_index, save_to_file, verbose):
 
             exec_start = time.time()
             dest_addr = get_address_for_seed_index(target_index, cwd=temp_dir, verbose=verbose)
-            send_transaction(i, dest_addr, amount_val, save_to_file=save_to_file, cwd=temp_dir, verbose=verbose)
+            send_transaction(i, dest_addr, amount_val, node_url_pattern, save_to_file=save_to_file, cwd=temp_dir, verbose=verbose)
             exec_time = time.time() - exec_start
 
         action = "Saved" if save_to_file else "Sent"
@@ -144,6 +150,7 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output from toolkit commands.")
     parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed to generate txs")
     parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed to generate txs")
+    parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
     save_to_file = not args.submit
     verbose = args.verbose
@@ -176,7 +183,7 @@ def main():
     print(f"ℹ️  Using {max_workers} threads for execution.")
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(process_transfer, i, start_index, end_index, save_to_file, verbose) for i in range(start_index, end_index + 1)]
+        futures = [executor.submit(process_transfer, i, start_index, end_index, args.node_url, save_to_file, verbose) for i in range(start_index, end_index + 1)]
         for future in concurrent.futures.as_completed(futures):
             try:
                 results.append(future.result())
