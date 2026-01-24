@@ -77,9 +77,7 @@ def get_balance(index, node_url_pattern):
         data = json.loads(json_str)
 
         # Mimic jq '.utxos[]?.value' | jq -s 'add'
-        utxos = data.get("utxos", [])
-        if not utxos:
-            return 0
+        utxos = data.get("utxos") or []
 
         total_balance = sum(int(utxo.get("value", 0)) for utxo in utxos)
         print(f"Seed {index}: {total_balance} [DB Copy: {db_copy_time:.4f}s, Exec: {exec_time:.4f}s]")
