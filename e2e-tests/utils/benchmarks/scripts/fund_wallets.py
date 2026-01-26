@@ -33,6 +33,7 @@ TOKEN_TYPE = "0000000000000000000000000000000000000000000000000000000000000000"
 DB_PATH = "toolkit.db"
 NODE_URL = "ws://localhost:9944" #"ws://ferdie.node.sc.iog.io:9944"
 FUNDING_AMOUNT = 3000000
+FUNDING_SEEDS = []
 
 def run_command(cmd, cwd=None):
     """Runs a command and returns stdout if successful, exits otherwise."""
@@ -124,6 +125,7 @@ def main():
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
     parser.add_argument("--night-amount", type=int, default=FUNDING_AMOUNT, help="Amount of NIGHT tokens to fund")
+    parser.add_argument("--funding-indices", nargs='+', help="List of specific funding seed indices (space or comma-separated, overrides --funding-start/--funding-end)")
     parser.add_argument("--indices", nargs='+', help="List of specific seed indices to fund (space or comma-separated, overrides --start/--end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
@@ -142,9 +144,20 @@ def main():
     else:
         target_indices = list(range(args.start, args.end + 1))
 
-    funding_start = args.funding_start
-    funding_end = args.funding_end
-    source_seeds = [f"{i:064}" for i in range(funding_start, funding_end + 1)]
+    if args.funding_indices:
+        funding_indices = []
+        for item in args.funding_indices:
+            try:
+                funding_indices.extend([int(i.strip()) for i in item.split(',') if i.strip()])
+            except ValueError:
+                print(f"❌ Error: Invalid value in --funding-indices: '{item}'. Please provide a list of integers.")
+                sys.exit(1)
+    elif FUNDING_SEEDS:
+        funding_indices = FUNDING_SEEDS
+    else:
+        funding_indices = list(range(args.funding_start, args.funding_end + 1))
+
+    source_seeds = [f"{i:064}" for i in funding_indices]
 
     print("🚀 Starting wallet creation and funding script...")
 

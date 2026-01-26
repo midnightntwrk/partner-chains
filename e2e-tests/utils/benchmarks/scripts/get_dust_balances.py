@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+import subprocess
+import json
+import sys
+import os
+import time
+import shutil
+import tempfile
+import concurrent.futures
+import argparse
+
+# Configuration
+TOOLKIT_CMD = "midnight-node-toolkit"
+RELAYS = [
+    "ferdie",
+    "george",
+    "henry",
+    "iris",
+    "jack",
+    "paul",
+    "quinn",
+    "rita",
+    "sam",
+    "tom"
+]
+START_INDEX = 118
+END_INDEX = 120
+DB_PATH = "toolkit.db"
+NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
+
+
+def get_dust_balance(index, node_url_pattern):
+    """Gets the dust balance for a given seed index."""
+    seed = f"{index:064}"
+
+    relay_name = RELAYS[index % len(RELAYS)]
+    if "ferdie" in node_url_pattern:
+        node_url = node_url_pattern.replace("ferdie", relay_name)
+    else:
+        node_url = node_url_pattern
+
+    cmd = [
+        TOOLKIT_CMD, "dust-balance",
+        "--seed", seed,
+        "--src-url", node_url
+    ]
+
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Copy toolkit.db to temp_dir to avoid locking
+            db_copy_start = time.time()
+            if os.path.exists(DB_PATH):
+                shutil.copy(DB_PATH, os.path.join(temp_dir, "toolkit.db"))
+            db_copy_time = time.time() - db_copy_start
+
+            exec_start = time.time()
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=temp_dir)
+            exec_time = time.time() - exec_start
+
+        output = result.stdout
+
+        # Mimic sed -n '/^{/,$p': Find lines starting from the first one that begins with '{'
+        lines = output.splitlines()
+        json_lines = []
+        capture = False
+        for line in lines:
+            if line.strip().startswith('{'):
+                capture = True
+            if capture:
+                json_lines.append(line)
+
+        if not json_lines:
+            print(f"⚠️  Seed {index}: No JSON output found.")
+            return 0
+
+        json_str = "\n".join(json_lines)
+        data = json.loads(json_str)
+
+        total_balance = data.get("total")
+        if total_balance is None:
+            total_balance = 0
+        else:
+            total_balance = int(total_balance)
+
+        print(f"Seed {index}: {total_balance} [DB Copy: {db_copy_time:.4f}s, Exec: {exec_time:.4f}s]")
+        return total_balance
+
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error getting dust balance for seed {index}: {e.stderr.strip()}")
+        return 0
+    except json.JSONDecodeError:
+        print(f"❌ Failed to parse JSON for seed {index}")
+        return 0
+    except Exception as e:
+        print(f"❌ Unexpected error for seed {index}: {e}")
+        return 0
+
+def main():
+    parser = argparse.ArgumentParser(description="Check dust balances.")
+    parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed index")
+    parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed index")
+    parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
+    args = parser.parse_args()
+
+    start_index = args.start
+    end_index = args.end
+    global DB_PATH
+    if not os.path.exists(DB_PATH):
+        print(f"⚠️  Warning: '{DB_PATH}' not found in current directory.")
+        user_input = input("Please enter the full path to toolkit.db: ").strip()
+        if not user_input:
+            print("❌ No path provided. Exiting.")
+            sys.exit(1)
+
+        DB_PATH = user_input
+        if not os.path.exists(DB_PATH):
+            print(f"❌ Error: File '{DB_PATH}' not found.")
+            sys.exit(1)
+
+    start_time = time.time()
+    print(f"🚀 Checking dust balances for seeds {start_index} to {end_index} across {len(RELAYS)} nodes...")
+
+    total_wallets = end_index - start_index + 1
+    cpu_count = os.cpu_count() or 1
+    max_threads = max(1, int(cpu_count * 0.9))
+    max_workers = min(total_wallets, max_threads)
+    print(f"ℹ️  Using {max_workers} threads.")
+
+    total_sum = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(get_dust_balance, i, args.node_url) for i in range(start_index, end_index + 1)]
+        for future in concurrent.futures.as_completed(futures):
+            total_sum += future.result()
+
+    end_time = time.time()
+    print(f"\n💰 Total Dust Balance: {total_sum}")
+    print(f"⏱️ Total execution time: {end_time - start_time:.2f} seconds")
+
+if __name__ == "__main__":
+    main()

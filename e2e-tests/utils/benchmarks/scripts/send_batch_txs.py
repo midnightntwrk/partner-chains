@@ -92,7 +92,7 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, ma
 
             print(f"✅ [{i}/{total_files}] Sent {tx_file} to {relay_name} [Chain Latency: {chain_latency:.2f}s, Exec: {exec_time:.4f}s]")
             if delay > 0:
-                time.sleep(delay)
+                time.sleep(random.uniform(delay * 0.5, delay * 1.5))
             return True
 
         except subprocess.CalledProcessError as e:

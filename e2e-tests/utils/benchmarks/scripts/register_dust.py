@@ -14,6 +14,7 @@ TARGET_START_INDEX = 4
 TARGET_END_INDEX = 499
 FUNDING_START_INDEX = 1
 FUNDING_END_INDEX = 3
+FUNDING_SEEDS = []
 RELAYS = [
     "ferdie",
     "george",
@@ -99,6 +100,7 @@ def register_dust_addresses():
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--funding-indices", nargs='+', help="List of specific funding seed indices (space or comma-separated, overrides --funding-start/--funding-end)")
     parser.add_argument("--indices", nargs='+', help="List of specific seed indices to register (space or comma-separated, overrides --start/--end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by other relay names if present.")
     args = parser.parse_args()
@@ -114,9 +116,20 @@ def register_dust_addresses():
     else:
         target_indices = list(range(args.start, args.end + 1))
 
-    funding_start = args.funding_start
-    funding_end = args.funding_end
-    funding_seeds = [f"{i:064}" for i in range(funding_start, funding_end + 1)]
+    if args.funding_indices:
+        funding_indices = []
+        for item in args.funding_indices:
+            try:
+                funding_indices.extend([int(i.strip()) for i in item.split(',') if i.strip()])
+            except ValueError:
+                print(f"❌ Error: Invalid value in --funding-indices: '{item}'. Please provide a list of integers.")
+                sys.exit(1)
+    elif FUNDING_SEEDS:
+        funding_indices = FUNDING_SEEDS
+    else:
+        funding_indices = list(range(args.funding_start, args.funding_end + 1))
+
+    funding_seeds = [f"{i:064}" for i in funding_indices]
 
     print(f"🚀 Starting dust registration for {len(target_indices)} seeds...")
 
