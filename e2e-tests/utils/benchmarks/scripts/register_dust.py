@@ -31,18 +31,19 @@ DB_PATH = "toolkit.db"
 NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
 
 
-def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path, verbose=False):
+def register_chunk(indices, funding_seed, node_url, toolkit_path, verbose=False):
+    failed_seeds = []
     try:
         relay_name = node_url.split('//')[1].split('.')[0]
     except IndexError:
         relay_name = "unknown"
-    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} on {relay_name} with funding seed ...{funding_seed[-2:]}")
+    print(f"🚀 Starting chunk of {len(indices)} wallets on {relay_name} with funding seed ...{funding_seed[-2:]}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         if os.path.exists(DB_PATH):
             shutil.copy(DB_PATH, os.path.join(temp_dir, "toolkit.db"))
 
-        for i in range(chunk_start, chunk_end + 1):
+        for i in indices:
             # Format the seed: Pad '20' to '000...00020' (64 chars total)
             wallet_seed = f"{i:064}"
 
@@ -82,10 +83,12 @@ def register_chunk(chunk_start, chunk_end, funding_seed, node_url, toolkit_path,
                     print("💡 Hint: The funding wallet likely has no funds (0 UTXOs).")
                 print("Error Output:", e.stderr)
                 # We continue to the next one even if one fails
+                failed_seeds.append(i)
 
             except FileNotFoundError:
                 print(f"\n❌ Error: Could not find '{toolkit_path}'.")
                 sys.exit(1)
+    return failed_seeds
 
 
 def register_dust_addresses():
@@ -96,18 +99,28 @@ def register_dust_addresses():
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--indices", nargs='+', help="List of specific seed indices to register (space or comma-separated, overrides --start/--end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by other relay names if present.")
     args = parser.parse_args()
 
-    start_index = args.start
-    end_index = args.end
+    if args.indices:
+        target_indices = []
+        for item in args.indices:
+            try:
+                target_indices.extend([int(i.strip()) for i in item.split(',') if i.strip()])
+            except ValueError:
+                print(f"❌ Error: Invalid value in --indices: '{item}'. Please provide a list of integers.")
+                sys.exit(1)
+    else:
+        target_indices = list(range(args.start, args.end + 1))
+
     funding_start = args.funding_start
     funding_end = args.funding_end
     funding_seeds = [f"{i:064}" for i in range(funding_start, funding_end + 1)]
 
-    print(f"🚀 Starting dust registration for seeds ending in {start_index} to {end_index}...")
+    print(f"🚀 Starting dust registration for {len(target_indices)} seeds...")
 
-    total_wallets = end_index - start_index + 1
+    total_wallets = len(target_indices)
     # Determine the number of workers based on the minimum of available resources
     cpu_count = os.cpu_count() or 1
     max_threads = max(1, int(cpu_count * 0.9))
@@ -125,10 +138,8 @@ def register_dust_addresses():
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = []
         for i in range(num_workers):
-            chunk_start = start_index + i * chunk_size
-            chunk_end = min(start_index + (i + 1) * chunk_size - 1, end_index)
-
-            if chunk_start > chunk_end:
+            chunk_indices = target_indices[i * chunk_size : (i + 1) * chunk_size]
+            if not chunk_indices:
                 break
 
             # Round-robin selection of relay node
@@ -137,9 +148,11 @@ def register_dust_addresses():
                 node_url = args.node_url.replace("ferdie", relay_name)
             else:
                 node_url = args.node_url
-            futures.append(executor.submit(register_chunk, chunk_start, chunk_end, funding_seeds[i], node_url, TOOLKIT_PATH, args.verbose))
+            futures.append(executor.submit(register_chunk, chunk_indices, funding_seeds[i], node_url, TOOLKIT_PATH, args.verbose))
 
-        concurrent.futures.wait(futures)
+        failed_seeds = []
+        for future in concurrent.futures.as_completed(futures):
+            failed_seeds.extend(future.result())
 
     end_time = time.time()
     total_duration = end_time - start_time
@@ -153,6 +166,8 @@ def register_dust_addresses():
         print(f"⏱️ Total execution time for {total_wallets} wallets: {total_duration:.2f} seconds")
     if total_wallets > 0:
         print(f"📊 Average time per registration: {total_duration / total_wallets:.2f} seconds")
+    if failed_seeds:
+        print(f"❌ Failed seeds: {sorted(failed_seeds)}")
 
 if __name__ == "__main__":
     register_dust_addresses()

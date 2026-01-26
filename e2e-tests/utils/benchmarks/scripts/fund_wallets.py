@@ -86,19 +86,20 @@ def fund_address(address, funding_seed, node_url, cwd=None):
     # Run the command (output is captured but we assume success if no error raised)
     run_command(cmd, cwd=cwd)
 
-def process_chunk(chunk_start, chunk_end, funding_seeds, node_url):
+def process_chunk(target_indices, funding_seeds, node_url):
+    failed_seeds = []
     try:
         relay_name = node_url.split('//')[1].split('.')[0]
     except IndexError:
         relay_name = "unknown"
-    print(f"🚀 Starting chunk {chunk_start}-{chunk_end} on {relay_name}")
+    print(f"🚀 Starting chunk of {len(target_indices)} wallets on {relay_name}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Copy toolkit.db to temp_dir to avoid locking
         if os.path.exists(DB_PATH):
             shutil.copy(DB_PATH, os.path.join(temp_dir, "toolkit.db"))
 
-        for i, seed in zip(range(chunk_start, chunk_end + 1), funding_seeds):
+        for i, seed in zip(target_indices, funding_seeds):
             try:
                 print(f"[Chunk {seed[-4:]}] Generating wallet {i}...", end=" ", flush=True)
                 addr = get_wallet_address(i, cwd=temp_dir)
@@ -112,6 +113,8 @@ def process_chunk(chunk_start, chunk_end, funding_seeds, node_url):
                 time.sleep(2)
             except Exception as e:
                 print(f"\n❌ Failed processing index {i}: {e}")
+                failed_seeds.append(i)
+    return failed_seeds
 
 def main():
     os.environ["MN_DONT_WATCH_PROGRESS"] = "false"
@@ -121,21 +124,31 @@ def main():
     parser.add_argument("--funding-start", type=int, default=FUNDING_START_INDEX, help="Starting funding seed index")
     parser.add_argument("--funding-end", type=int, default=FUNDING_END_INDEX, help="Ending funding seed index")
     parser.add_argument("--night-amount", type=int, default=FUNDING_AMOUNT, help="Amount of NIGHT tokens to fund")
+    parser.add_argument("--indices", nargs='+', help="List of specific seed indices to fund (space or comma-separated, overrides --start/--end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
 
     global AMOUNT
     AMOUNT = args.night_amount * 10**6
 
-    start_index = args.start
-    end_index = args.end
+    if args.indices:
+        target_indices = []
+        for item in args.indices:
+            try:
+                target_indices.extend([int(i.strip()) for i in item.split(',') if i.strip()])
+            except ValueError:
+                print(f"❌ Error: Invalid value in --indices: '{item}'. Please provide a list of integers.")
+                sys.exit(1)
+    else:
+        target_indices = list(range(args.start, args.end + 1))
+
     funding_start = args.funding_start
     funding_end = args.funding_end
     source_seeds = [f"{i:064}" for i in range(funding_start, funding_end + 1)]
 
     print("🚀 Starting wallet creation and funding script...")
 
-    total_wallets = end_index - start_index + 1
+    total_wallets = len(target_indices)
     # Determine the number of workers based on the minimum of available resources
     cpu_count = os.cpu_count() or 1
     max_threads = max(1, int(cpu_count * 0.9))
@@ -152,10 +165,8 @@ def main():
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = []
         for i in range(num_workers):
-            chunk_start = start_index + i * chunk_size
-            chunk_end = min(start_index + (i + 1) * chunk_size - 1, end_index)
-
-            if chunk_start > chunk_end:
+            chunk_indices = target_indices[i * chunk_size : (i + 1) * chunk_size]
+            if not chunk_indices:
                 break
 
             # Round-robin selection of relay node
@@ -167,12 +178,14 @@ def main():
 
             # Calculate which seeds belong to this chunk
             # We use modulo to cycle seeds if there are fewer seeds than wallets
-            chunk_len = chunk_end - chunk_start + 1
-            chunk_seeds = [source_seeds[(chunk_start - start_index + k) % len(source_seeds)] for k in range(chunk_len)]
+            chunk_len = len(chunk_indices)
+            chunk_seeds = [source_seeds[(i * chunk_size + k) % len(source_seeds)] for k in range(chunk_len)]
 
-            futures.append(executor.submit(process_chunk, chunk_start, chunk_end, chunk_seeds, node_url))
+            futures.append(executor.submit(process_chunk, chunk_indices, chunk_seeds, node_url))
 
-        concurrent.futures.wait(futures)
+        failed_seeds = []
+        for future in concurrent.futures.as_completed(futures):
+            failed_seeds.extend(future.result())
 
     end_time = time.time()
     total_duration = end_time - start_time
@@ -186,6 +199,8 @@ def main():
         print(f"⏱️ Total execution time for {total_wallets} wallets: {total_duration:.2f} seconds")
     if total_wallets > 0:
         print(f"📊 Average time per funding: {total_duration / total_wallets:.2f} seconds")
+    if failed_seeds:
+        print(f"❌ Failed seeds: {sorted(failed_seeds)}")
 
 if __name__ == "__main__":
     main()
