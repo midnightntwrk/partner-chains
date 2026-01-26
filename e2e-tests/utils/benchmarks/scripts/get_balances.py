@@ -135,13 +135,20 @@ def main():
     print(f"ℹ️  Using {max_workers} threads.")
 
     total_sum = 0
+    empty_seeds = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(get_balance, i, args.node_url) for i in target_indices]
-        for future in concurrent.futures.as_completed(futures):
-            total_sum += future.result()
+        future_to_index = {executor.submit(get_balance, i, args.node_url): i for i in target_indices}
+        for future in concurrent.futures.as_completed(future_to_index):
+            index = future_to_index[future]
+            balance = future.result()
+            total_sum += balance
+            if balance == 0:
+                empty_seeds.append(index)
 
     end_time = time.time()
     print(f"\n💰 Total Balance: {total_sum}")
+    if empty_seeds:
+        print(f"Empty wallet seeds: {sorted(empty_seeds)}")
     print(f"⏱️ Total execution time: {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
