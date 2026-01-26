@@ -182,6 +182,9 @@ def main():
             print(f"❌ Error: File '{DB_PATH}' not found.")
             sys.exit(1)
 
+    print(f"🔄 Fetching latest chain state from {args.node_url}...")
+    run_command([TOOLKIT_CMD, "fetch", "-s", args.node_url], verbose=verbose)
+
     if save_to_file:
         if os.path.exists("txs"):
             shutil.rmtree("txs")
