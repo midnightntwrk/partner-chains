@@ -99,11 +99,21 @@ def main():
     parser = argparse.ArgumentParser(description="Check dust balances.")
     parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed index")
     parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed index")
+    parser.add_argument("--indices", nargs='+', help="List of specific seed indices (space or comma-separated, overrides --start/--end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
 
-    start_index = args.start
-    end_index = args.end
+    if args.indices:
+        target_indices = []
+        for item in args.indices:
+            try:
+                target_indices.extend([int(i.strip()) for i in item.split(',') if i.strip()])
+            except ValueError:
+                print(f"❌ Error: Invalid value in --indices: '{item}'. Please provide a list of integers.")
+                sys.exit(1)
+    else:
+        target_indices = list(range(args.start, args.end + 1))
+
     global DB_PATH
     if not os.path.exists(DB_PATH):
         print(f"⚠️  Warning: '{DB_PATH}' not found in current directory.")
@@ -118,9 +128,9 @@ def main():
             sys.exit(1)
 
     start_time = time.time()
-    print(f"🚀 Checking dust balances for seeds {start_index} to {end_index} across {len(RELAYS)} nodes...")
+    print(f"🚀 Checking dust balances for {len(target_indices)} seeds across {len(RELAYS)} nodes...")
 
-    total_wallets = end_index - start_index + 1
+    total_wallets = len(target_indices)
     cpu_count = os.cpu_count() or 1
     max_threads = max(1, int(cpu_count * 0.9))
     max_workers = min(total_wallets, max_threads)
@@ -128,7 +138,7 @@ def main():
 
     total_sum = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(get_dust_balance, i, args.node_url) for i in range(start_index, end_index + 1)]
+        futures = [executor.submit(get_dust_balance, i, args.node_url) for i in target_indices]
         for future in concurrent.futures.as_completed(futures):
             total_sum += future.result()
 
