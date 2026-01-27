@@ -6,7 +6,10 @@ All-in-one script to fetch block sizes from a Substrate node and generate visual
 import argparse
 import subprocess
 import sys
+import json
+import os
 from pathlib import Path
+from datetime import datetime
 
 
 def main():
@@ -20,6 +23,13 @@ Examples:
   
   # Analyze specific block range
   %(prog)s --url ws://127.0.0.1:9944 --start-block 1000 --end-block 2000
+  
+  # Analyze blocks from a time range (auto-discovers or downloads logs)
+  %(prog)s --url ws://127.0.0.1:9944 --time-range '{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'
+  
+  # Or specify log directory explicitly
+  %(prog)s --url ws://127.0.0.1:9944 --log-dir ../../logs/from_2026-01-26_16-20-00_to_2026-01-26_16-40-00 \\
+    --time-range '{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'
   
   # Specify output directory
   %(prog)s --url ws://127.0.0.1:9944 --latest-n 50 --output-dir ./my_analysis
@@ -42,6 +52,24 @@ Examples:
                        type=int,
                        help="Fetch the latest N blocks")
     
+    parser.add_argument("--time-range",
+                       help='Time range as JSON to derive block numbers from logs, e.g., \'{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}\'')
+    
+    parser.add_argument("--from-time",
+                       help="Start time (ISO 8601 or YYYY-MM-DD HH:MM:SS)")
+    
+    parser.add_argument("--to-time",
+                       help="End time (ISO 8601 or YYYY-MM-DD HH:MM:SS)")
+    
+    parser.add_argument("--log-dir",
+                       help="Directory containing log files (optional - will auto-discover or download if not specified)")
+    
+    parser.add_argument("--config",
+                       help="Config file for download_logs.py (default: ../../secrets/substrate/performance/performance.json)")
+    
+    parser.add_argument("--node",
+                       help="Specific node to use for block range extraction (default: all nodes)")
+    
     parser.add_argument("--output-dir", 
                        help="Output directory for data and graphs (default: auto-generated based on block range)")
     
@@ -55,6 +83,134 @@ Examples:
     args = parser.parse_args()
     
     script_dir = Path(__file__).parent.absolute()
+    
+    # Auto-infer node name from URL if not specified
+    if not args.node and args.url:
+        # Extract node name from URL (e.g., george.node.sc.iog.io -> george)
+        import re
+        url_match = re.search(r'//([a-z]+)\.', args.url)
+        if url_match:
+            inferred_node = url_match.group(1)
+            args.node = inferred_node
+            print(f"Auto-detected node from URL: {inferred_node}")
+            print()
+    
+    # If time range is specified, derive block numbers from logs
+    if args.time_range or args.from_time or args.to_time:
+        # Parse time range to determine log directory name if not specified
+        if not args.log_dir:
+            # Extract from and to times
+            if args.time_range:
+                try:
+                    time_data = json.loads(args.time_range)
+                    from_time = time_data.get('from')
+                    to_time = time_data.get('to')
+                except json.JSONDecodeError as e:
+                    print(f"Error: Invalid JSON in --time-range: {e}")
+                    sys.exit(1)
+            else:
+                from_time = args.from_time
+                to_time = args.to_time
+            
+            if not from_time or not to_time:
+                print("Error: Either --time-range or both --from-time and --to-time must be specified")
+                sys.exit(1)
+            
+            # Generate expected log directory name
+            try:
+                # Parse times to create directory name format
+                def parse_dt(time_str):
+                    if 'T' in time_str or 'Z' in time_str:
+                        time_str = time_str.replace('Z', '+00:00')
+                        return datetime.fromisoformat(time_str)
+                    else:
+                        return datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+                
+                start_dt = parse_dt(from_time)
+                end_dt = parse_dt(to_time)
+                start_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
+                end_str = end_dt.strftime("%Y-%m-%d_%H-%M-%S")
+                expected_log_dir = script_dir / ".." / ".." / "logs" / f"from_{start_str}_to_{end_str}"
+                expected_log_dir = expected_log_dir.resolve()
+            except Exception as e:
+                print(f"Error parsing time range: {e}")
+                sys.exit(1)
+            
+            # Check if log directory exists
+            if expected_log_dir.exists() and list(expected_log_dir.glob("*.txt")):
+                args.log_dir = str(expected_log_dir)
+                print(f"Found existing logs: {args.log_dir}")
+            else:
+                # Download logs
+                print(f"Logs not found at {expected_log_dir}")
+                print("Downloading logs...")
+                print("-" * 60)
+                
+                # Determine config file path
+                if args.config:
+                    config_file = args.config
+                else:
+                    config_file = str(script_dir / ".." / ".." / ".." / ".." / "secrets" / "substrate" / "performance" / "performance.json")
+                
+                download_script = script_dir / ".." / ".." / "download_logs.py"
+                download_cmd = [
+                    sys.executable,
+                    str(download_script),
+                    "--config", config_file
+                ]
+                
+                if args.time_range:
+                    download_cmd.extend(["--time-range", args.time_range])
+                else:
+                    download_cmd.extend(["--from-time", args.from_time, "--to-time", args.to_time])
+                
+                try:
+                    subprocess.run(download_cmd, check=True)
+                    args.log_dir = str(expected_log_dir)
+                    print(f"Logs downloaded to: {args.log_dir}")
+                    print()
+                except subprocess.CalledProcessError as e:
+                    print(f"\nError downloading logs: {e}")
+                    print("\nTip: You can manually specify --log-dir if logs are in a different location")
+                    sys.exit(1)
+        
+        print("Extracting block range from logs...")
+        print("-" * 60)
+        
+        # Run extract_block_range_from_logs.py
+        extract_cmd = [
+            sys.executable,
+            str(script_dir / "extract_block_range_from_logs.py"),
+            "--log-dir", args.log_dir,
+            "--json"
+        ]
+        
+        if args.time_range:
+            extract_cmd.extend(["--time-range", args.time_range])
+        elif args.from_time and args.to_time:
+            extract_cmd.extend(["--from-time", args.from_time, "--to-time", args.to_time])
+        else:
+            print("Error: Either --time-range or both --from-time and --to-time must be specified")
+            sys.exit(1)
+        
+        if args.node:
+            extract_cmd.extend(["--node", args.node])
+        
+        try:
+            result = subprocess.run(extract_cmd, check=True, capture_output=True, text=True)
+            block_range = json.loads(result.stdout)
+            args.start_block = block_range["start_block"]
+            args.end_block = block_range["end_block"]
+            print(f"Found block range: {args.start_block} to {args.end_block}")
+            print()
+        except subprocess.CalledProcessError as e:
+            print(f"\nError extracting block range: {e}")
+            if e.stderr:
+                print(e.stderr)
+            sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"\nError parsing block range output: {e}")
+            sys.exit(1)
     
     # Determine output directory
     if args.output_dir:

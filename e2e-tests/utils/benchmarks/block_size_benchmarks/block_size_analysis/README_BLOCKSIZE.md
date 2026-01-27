@@ -36,6 +36,23 @@ Analyze a specific block range:
 python3 analyze_block_sizes.py --url ws://127.0.0.1:9944 --start-block 1000 --end-block 2000
 ```
 
+Analyze blocks from a time range (auto-discovers or downloads logs):
+
+```bash
+python3 analyze_block_sizes.py \
+  --url ws://127.0.0.1:9944 \
+  --time-range '{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'
+```
+
+Or specify log directory explicitly:
+
+```bash
+python3 analyze_block_sizes.py \
+  --url ws://127.0.0.1:9944 \
+  --log-dir ../../logs/from_2026-01-26_16-20-00_to_2026-01-26_16-40-00 \
+  --time-range '{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'
+```
+
 Specify output directory:
 
 ```bash
@@ -67,6 +84,12 @@ All-in-one script that fetches data and generates visualizations.
 - `--latest-n` - Fetch the latest N blocks
 - `--start-block` - Starting block number
 - `--end-block` - Ending block number
+- `--time-range` - Time range as JSON to derive block numbers from logs (e.g., `'{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'`)
+- `--from-time` - Start time (ISO 8601 or YYYY-MM-DD HH:MM:SS)
+- `--to-time` - End time (ISO 8601 or YYYY-MM-DD HH:MM:SS)
+- `--log-dir` - Directory containing log files (optional - will auto-discover or download if not specified)
+- `--config` - Config file for `download_logs.py` (default: auto-detected)
+- `--node` - Specific node to use for block range extraction (default: all nodes)
 - `--output-dir` - Output directory (default: auto-generated)
 - `--skip-fetch` - Skip fetching, use existing CSV
 - `--csv-file` - Path to existing CSV (if `--skip-fetch`)
@@ -106,6 +129,25 @@ Generates visualizations from CSV data.
 - `block_size_analysis_dashboard.png` - Combined dashboard with all metrics
 - `block_size_report.txt` - Text report with statistics
 
+### `extract_block_range_from_logs.py`
+
+Extracts block number range from logs based on a time range. This is used internally by `analyze_block_sizes.py` when using time-based analysis, but can also be used standalone.
+
+**Arguments:**
+- `--log-dir` - Directory containing log files from `download_logs.py` (required)
+- `--time-range` - Time range as JSON (e.g., `'{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'`)
+- `--from-time` - Start time (ISO 8601 or YYYY-MM-DD HH:MM:SS)
+- `--to-time` - End time (ISO 8601 or YYYY-MM-DD HH:MM:SS)
+- `--node` - Specific node to analyze (default: all nodes)
+- `--json` - Output result as JSON
+
+**Example:**
+```bash
+python3 extract_block_range_from_logs.py \
+  --log-dir ../../logs/from_2026-01-26_16-20-00_to_2026-01-26_16-40-00 \
+  --time-range '{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'
+```
+
 ## Usage Examples
 
 ### Analyze Local Development Node
@@ -137,6 +179,40 @@ python3 analyze_block_sizes.py \
   --skip-fetch \
   --csv-file ./my_data/block_sizes.csv \
   --output-dir ./new_plots
+```
+
+### Time-Based Analysis Using Logs
+
+Simplest approach - just specify the time range (logs will be auto-discovered or downloaded):
+
+```bash
+python3 analyze_block_sizes.py \
+  --url ws://your-node:9944 \
+  --time-range '{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'
+```
+
+The script will:
+1. Check if logs already exist in `../../logs/from_YYYY-MM-DD_HH-MM-SS_to_YYYY-MM-DD_HH-MM-SS/`
+2. If not found, automatically download them using `download_logs.py`
+3. Extract the block range from the logs
+4. Fetch block data and generate visualizations
+
+Or use separate from/to parameters:
+
+```bash
+python3 analyze_block_sizes.py \
+  --url ws://your-node:9944 \
+  --from-time "2026-01-26 16:20:00" \
+  --to-time "2026-01-26 16:40:00"
+```
+
+Manually specify log directory (if logs are in a non-standard location):
+
+```bash
+python3 analyze_block_sizes.py \
+  --url ws://your-node:9944 \
+  --log-dir /path/to/custom/logs \
+  --time-range '{"from":"2026-01-26 16:20:00","to":"2026-01-26 16:40:00"}'
 ```
 
 ## Output
