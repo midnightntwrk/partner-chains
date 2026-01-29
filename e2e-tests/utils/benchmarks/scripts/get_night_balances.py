@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import concurrent.futures
 import argparse
+import random
 
 # Configuration
 TOOLKIT_CMD = "midnight-node-toolkit"
@@ -23,14 +24,16 @@ RELAYS = [
     "sam",
     "tom"
 ]
-START_INDEX = 1
-END_INDEX = 10
+START_INDEX = 118
+END_INDEX = 120
 DB_PATH = "toolkit.db"
 NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
+DELAY = 0.25
 
 
-def get_balance(index, node_url_pattern):
+def get_balance(index, node_url_pattern, verbose=False):
     """Gets the balance for a given seed index."""
+    time.sleep(random.uniform(DELAY * 0.5, DELAY * 1.5))
     seed = f"{index:064}"
 
     relay_name = RELAYS[index % len(RELAYS)]
@@ -45,6 +48,9 @@ def get_balance(index, node_url_pattern):
         "--src-url", node_url
     ]
 
+    if verbose:
+        print(f"[{index}] Running: {' '.join(cmd)}")
+
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Copy toolkit.db to temp_dir to avoid locking
@@ -58,6 +64,12 @@ def get_balance(index, node_url_pattern):
             exec_time = time.time() - exec_start
 
         output = result.stdout
+
+        if verbose:
+            if result.stdout:
+                print(f"[{index}] STDOUT: {result.stdout.strip()}")
+            if result.stderr:
+                print(f"[{index}] STDERR: {result.stderr.strip()}")
 
         # Mimic sed -n '/^{/,$p': Find lines starting from the first one that begins with '{'
         lines = output.splitlines()
@@ -80,7 +92,7 @@ def get_balance(index, node_url_pattern):
         utxos = data.get("utxos") or []
 
         total_balance = sum(int(utxo.get("value", 0)) for utxo in utxos)
-        print(f"Seed {index}: {total_balance} [DB Copy: {db_copy_time:.4f}s, Exec: {exec_time:.4f}s]")
+        print(f"Seed {index:4}: {total_balance:<28} [DB Copy: {db_copy_time:.4f}s, Exec: {exec_time:.4f}s]")
         return total_balance
 
     except subprocess.CalledProcessError as e:
@@ -95,9 +107,10 @@ def get_balance(index, node_url_pattern):
 
 def main():
     parser = argparse.ArgumentParser(description="Check wallet balances.")
-    parser.add_argument("--start", type=int, default=START_INDEX, help="Starting seed index")
-    parser.add_argument("--end", type=int, default=END_INDEX, help="Ending seed index")
-    parser.add_argument("--indices", nargs='+', help="List of specific seed indices (space or comma-separated, overrides --start/--end)")
+    parser.add_argument("-s", "--start", type=int, default=START_INDEX, help="Starting seed index")
+    parser.add_argument("-e", "--end", type=int, default=END_INDEX, help="Ending seed index")
+    parser.add_argument("-i", "--indices", nargs='+', help="List of specific seed indices (space or comma-separated, overrides --start/--end)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     args = parser.parse_args()
 
@@ -137,7 +150,7 @@ def main():
     total_sum = 0
     empty_seeds = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_index = {executor.submit(get_balance, i, args.node_url): i for i in target_indices}
+        future_to_index = {executor.submit(get_balance, i, args.node_url, verbose=args.verbose): i for i in target_indices}
         for future in concurrent.futures.as_completed(future_to_index):
             index = future_to_index[future]
             balance = future.result()
@@ -146,7 +159,7 @@ def main():
                 empty_seeds.append(index)
 
     end_time = time.time()
-    print(f"\n💰 Total Balance: {total_sum}")
+    print(f"\n💰 Total Night Balance: {total_sum}")
     if empty_seeds:
         print(f"Empty wallet seeds: {sorted(empty_seeds)}")
     print(f"⏱️ Total execution time: {end_time - start_time:.2f} seconds")

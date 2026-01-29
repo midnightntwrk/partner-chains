@@ -145,7 +145,7 @@ python3 get_balances.py --start 1 --end 3
 
 **Command:**
 ```bash
-python3 register_dust.py --start 10 --end 100 --funding-start 1 --funding-end 3
+python3 register_dust.py --dest-start 10 --dest-end 100 --fund-start 1 --fund-end 3
 ```
 
 **Parameters:**
@@ -337,6 +337,8 @@ python3 send_batch_txs.py --workers 5 --verbose
 - `--end 50`: (Optional) Only submit transactions up to seed index 50
 - `--workers 5`: (Optional) Number of concurrent submission threads (default: CPU count)
 - `--verbose`: (Optional) Show detailed command output
+- `--batch-size 20`: (Optional) Number of transactions to submit per batch (default: 0, submit all at once).
+- `--batch-delay 6.0`: (Optional) Delay in seconds between batches (default: 6.0s).
 
 **What it does:**
 - Scans the `txs/` directory for transaction files matching `tx_*.mn`

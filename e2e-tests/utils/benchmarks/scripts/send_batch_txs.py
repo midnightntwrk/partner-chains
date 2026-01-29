@@ -109,31 +109,37 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     os.environ["MN_DONT_WATCH_PROGRESS"] = "true"
 
     parser = argparse.ArgumentParser(description="Submit batch transactions.")
-    parser.add_argument("--start", type=int, help="Start index")
-    parser.add_argument("--end", type=int, help="End index")
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("-s", "--start", type=int, help="Start index")
+    parser.add_argument("-e", "--end", type=int, help="End index")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("--workers", type=int, help="Number of concurrent workers")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     parser.add_argument("--max-retries", type=int, default=MAX_RETRIES, help="Maximum number of attempts per transaction.")
     parser.add_argument("--delay", type=float, default=DELAY, help="Delay in seconds after each transaction submission.")
+    parser.add_argument("--batch-size", type=int, default=0, help="Number of transactions to submit per batch. Default: 0 (submit all at once).")
+    parser.add_argument("--batch-delay", type=float, default=6.0, help="Delay in seconds between batches.")
     args = parser.parse_args()
 
     start_time = time.time()
     # 1. Find all matching files
     all_files = glob.glob(os.path.join("txs", "tx_*.mn"))
+    all_files.sort()
 
     files = []
-    if args.start is not None and args.end is not None:
+    if args.start is None and args.end is None:
+        files = all_files
+    else:
         for f in all_files:
             try:
                 basename = os.path.basename(f)
                 index = int(os.path.splitext(basename)[0].split('_')[-1])
-                if args.start <= index <= args.end:
-                    files.append(f)
+                if args.start is not None and index < args.start:
+                    continue
+                if args.end is not None and index > args.end:
+                    continue
+                files.append(f)
             except (ValueError, IndexError):
                 continue
-    else:
-        files = all_files
 
     if not files:
         msg = f" in range {args.start}-{args.end}" if args.start is not None else ""
@@ -141,6 +147,11 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
         sys.exit(1)
 
     print(f"🚀 Found {len(files)} transaction files to submit.")
+
+    if args.batch_size > 0:
+        print(f"📦 Batching enabled: {args.batch_size} txs/batch, {args.batch_delay}s delay between batches.")
+    else:
+        print(f"📦 Batching disabled: Submitting all transactions in a single batch.")
 
     if args.workers:
         max_workers = args.workers
@@ -152,22 +163,42 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
 
     results = []
     failed_seeds = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_file = {executor.submit(submit_single_tx, i, tx_file, len(files), toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay): tx_file for i, tx_file in enumerate(files, 1)}
-        for future in concurrent.futures.as_completed(future_to_file):
-            tx_file = future_to_file[future]
-            try:
-                res = future.result()
-                results.append(res)
-                if res is False:
+
+    # Determine batches
+    if args.batch_size and args.batch_size > 0:
+        batches = [files[i:i + args.batch_size] for i in range(0, len(files), args.batch_size)]
+    else:
+        batches = [files]
+
+    total_files_count = len(files)
+    global_index = 1
+
+    for batch_idx, batch in enumerate(batches):
+        if batch_idx > 0:
+            print(f"⏳ Waiting {args.batch_delay}s before next batch...")
+            time.sleep(args.batch_delay)
+
+        if args.batch_size > 0:
+            print(f"🚀 Processing Batch {batch_idx + 1}/{len(batches)}: {len(batch)} transactions")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_file = {executor.submit(submit_single_tx, global_index + i, tx_file, total_files_count, toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay): tx_file for i, tx_file in enumerate(batch)}
+            for future in concurrent.futures.as_completed(future_to_file):
+                tx_file = future_to_file[future]
+                try:
+                    res = future.result()
+                    results.append(res)
+                    if res is False:
+                        basename = os.path.basename(tx_file)
+                        seed = os.path.splitext(basename)[0].split('_')[-1]
+                        failed_seeds.append(seed)
+                except Exception:
+                    results.append(False)
                     basename = os.path.basename(tx_file)
                     seed = os.path.splitext(basename)[0].split('_')[-1]
                     failed_seeds.append(seed)
-            except Exception:
-                results.append(False)
-                basename = os.path.basename(tx_file)
-                seed = os.path.splitext(basename)[0].split('_')[-1]
-                failed_seeds.append(seed)
+
+        global_index += len(batch)
 
     end_time = time.time()
     print("\n🎉 Batch submission complete.")
