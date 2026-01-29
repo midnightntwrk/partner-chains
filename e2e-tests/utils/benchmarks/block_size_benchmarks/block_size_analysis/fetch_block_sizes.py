@@ -17,7 +17,7 @@ def connect_to_node(url: str) -> SubstrateInterface:
         return substrate
     except Exception as e:
         print(f"Error connecting to node: {e}")
-        sys.exit(1)
+        raise ConnectionError(f"Could not connect to node: {e}")
 
 
 def get_block_size(substrate: SubstrateInterface, block_hash=None) -> dict:
@@ -174,7 +174,7 @@ def save_to_csv(block_data: list, output_file: Path):
         
     except Exception as e:
         print(f"Error saving to CSV: {e}")
-        sys.exit(1)
+        raise IOError(f"Could not save to CSV: {e}")
 
 
 def main():

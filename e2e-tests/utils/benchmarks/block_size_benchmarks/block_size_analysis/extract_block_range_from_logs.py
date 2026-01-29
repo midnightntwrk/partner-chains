@@ -112,14 +112,13 @@ def find_block_range_from_logs(log_dir, start_time, end_time, node_name=None, mi
     
     if not log_dir.exists():
         print(f"Error: Log directory not found: {log_dir}", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError(f"Log directory not found: {log_dir}")
     
     # Find log files
     if node_name:
-        log_files = [log_dir / f"{node_name}.txt"]
         if not log_files[0].exists():
             print(f"Error: Log file not found: {log_files[0]}", file=sys.stderr)
-            sys.exit(1)
+            raise FileNotFoundError(f"Log file not found: {log_files[0]}")
     else:
         log_files = list(log_dir.glob("*.txt"))
         # Exclude special files
@@ -127,7 +126,7 @@ def find_block_range_from_logs(log_dir, start_time, end_time, node_name=None, mi
     
     if not log_files:
         print(f"Error: No log files found in {log_dir}", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError(f"No log files found in {log_dir}")
     
     print(f"Scanning {len(log_files)} log file(s)... (min block: {min_block_threshold})", file=sys.stderr)
     
@@ -140,7 +139,7 @@ def find_block_range_from_logs(log_dir, start_time, end_time, node_name=None, mi
     
     if not all_blocks:
         print("Error: No blocks found in the specified time range", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError("No blocks found in the specified time range")
     
     # Heuristic: find largest contiguous range (handles chain restarts)
     sorted_blocks = sorted(all_blocks)
@@ -150,7 +149,7 @@ def find_block_range_from_logs(log_dir, start_time, end_time, node_name=None, mi
     
     if not sorted_blocks:
         print("Error: No blocks found above minimum threshold", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError("No blocks found above minimum threshold")
     
     # Find gaps (chain restarts create large gaps)
     # Group blocks into contiguous ranges with max gap of 100 blocks
@@ -217,7 +216,7 @@ def parse_time(time_str):
     except ValueError as e:
         print(f"Error parsing time '{time_str}': {e}", file=sys.stderr)
         print("Please use ISO 8601 format (e.g., '2026-01-26T16:20:00Z') or 'YYYY-MM-DD HH:MM:SS' (assumed EST)", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f"Invalid time format: {time_str}")
 
 
 def main():

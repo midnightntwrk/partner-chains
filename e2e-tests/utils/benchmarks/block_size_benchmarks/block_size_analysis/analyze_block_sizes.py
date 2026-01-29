@@ -11,6 +11,12 @@ import os
 from pathlib import Path
 from datetime import datetime
 
+# Add current directory to path to import sibling modules
+script_dir = Path(__file__).parent.absolute()
+sys.path.append(str(script_dir))
+
+import fetch_block_sizes
+import plot_block_sizes
 
 def main():
     parser = argparse.ArgumentParser(
@@ -226,37 +232,44 @@ Examples:
         output_dir = script_dir / dir_name
     
     output_dir.mkdir(parents=True, exist_ok=True)
-    csv_file = output_dir / "block_sizes.csv"
     
     print("=" * 60)
     print("BLOCK SIZE ANALYSIS")
     print("=" * 60)
     print()
     
+    block_data = []
+
     # Step 1: Fetch block data (unless skipped)
     if not args.skip_fetch:
         print("STEP 1: Fetching block size data...")
         print("-" * 60)
         
-        fetch_cmd = [
-            sys.executable,
-            str(script_dir / "fetch_block_sizes.py"),
-            "--url", args.url,
-            "--output", str(csv_file)
-        ]
-        
-        if args.latest_n:
-            fetch_cmd.extend(["--latest-n", str(args.latest_n)])
-        elif args.start_block is not None and args.end_block is not None:
-            fetch_cmd.extend(["--start-block", str(args.start_block)])
-            fetch_cmd.extend(["--end-block", str(args.end_block)])
-        else:
-            print("Error: Either --latest-n or both --start-block and --end-block must be specified")
-            sys.exit(1)
-        
         try:
-            subprocess.run(fetch_cmd, check=True)
-        except subprocess.CalledProcessError as e:
+            # Connect to node
+            substrate = fetch_block_sizes.connect_to_node(args.url)
+            
+            # Determine block range
+            if args.latest_n:
+                # Get current block
+                latest_block = substrate.get_block()
+                end_block = latest_block['header']['number']
+                start_block = max(0, end_block - args.latest_n + 1)
+                print(f"Fetching latest {args.latest_n} blocks (#{start_block} to #{end_block})")
+            elif args.start_block is not None and args.end_block is not None:
+                start_block = args.start_block
+                end_block = args.end_block
+            else:
+                print("Error: Either --latest-n or both --start-block and --end-block must be specified")
+                sys.exit(1)
+            
+            # Fetch block data in memory
+            block_data = fetch_block_sizes.fetch_block_range(substrate, start_block, end_block)
+            
+            # Close connection
+            substrate.close()
+            
+        except Exception as e:
             print(f"\nError fetching block data: {e}")
             sys.exit(1)
         
@@ -269,24 +282,31 @@ Examples:
         if not csv_file.exists():
             print(f"Error: CSV file not found: {csv_file}")
             sys.exit(1)
-        print(f"Using existing CSV file: {csv_file}")
+        print(f"Loading from existing CSV file: {csv_file}")
+        try:
+            block_data = plot_block_sizes.load_csv_data(csv_file)
+        except Exception as e:
+            print(f"Error loading CSV data: {e}")
+            sys.exit(1)
         print()
     
     # Step 2: Generate visualizations
     print("STEP 2: Generating visualizations...")
     print("-" * 60)
     
-    plot_cmd = [
-        sys.executable,
-        str(script_dir / "plot_block_sizes.py"),
-        "--input", str(csv_file),
-        "--output-dir", str(output_dir)
-    ]
-    
     try:
-        subprocess.run(plot_cmd, check=True)
-    except subprocess.CalledProcessError as e:
+        plot_block_sizes.plot_block_sizes_over_time(block_data, output_dir)
+        plot_block_sizes.plot_block_size_distribution(block_data, output_dir)
+        plot_block_sizes.plot_block_size_vs_extrinsics(block_data, output_dir)
+        plot_block_sizes.plot_combined_analysis(block_data, output_dir)
+        
+        # Generate and save report
+        plot_block_sizes.generate_report(block_data, output_dir)
+        
+    except Exception as e:
         print(f"\nError generating visualizations: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
     
     print()
@@ -295,7 +315,8 @@ Examples:
     print("=" * 60)
     print(f"\nAll outputs saved to: {output_dir}")
     print(f"\nGenerated files:")
-    print(f"  • {csv_file.name} - Raw block size data")
+    if not args.skip_fetch:
+         print(f"  (Data kept in memory, not saved to CSV)")
     print(f"  • block_sizes_over_time.png - Line chart of block sizes")
     print(f"  • block_size_distribution.png - Histogram of block sizes")
     print(f"  • block_size_vs_extrinsics.png - Scatter plot")
