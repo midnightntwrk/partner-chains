@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../",
+  "sources": ["mint/mint.compact", "compiler/standard-library.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAAA;;;;;;;;;;MAMA,AAAA,IAIC;;;;;cAJmB,OAAgB;cAAE,WAAoB;cAAE,QAAgB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;yCAAxD,OAAgB,+BAAE,WAAoB,+BAAE,QAAgB;;;;;;;;;sCAAxD,OAAgB;sCAAE,WAAoB;sCAAE,QAAgB;;;OAI3E;;;GACA;EAXD;;;;;;;;;;;;;;;;;;;;;;;;;;IAIA;;;;;;;;;yEAA6B;;;;;;;GAO5B;EC0BD,AAAA,QAA0B;kCACkB;;EAW5C,AAAA,oBAAmC,SAAU;;uDAAV;uDAAU;;;EA8F7C,AAAA;;;;;;;;EAEA,AAAA,gDAAiC,QAAwB;;wDAAxB;wDAAwB;;;;;;;EAGzD,AAAA,aAAyB,cAAuB;qCACC,cAAY;;;ED/I7D,AAAA,OAIC,4BAJmB,OAAgB,EAAE,WAAoB,EAAE,QAAgB;UAClE,MAAkI,YAAvF,OAAK;;yCAA6B,WAAS;iEAAG;;;;;;;;;;;sIAAM;4BAA0B,QAAM;IACrI;;;;;;;;;;;2HAA6B,WAAS;;;;;;2HAAY,QAAM;;;;;;;;;;;;2DAAlD;;;8BACY,MAAI;;;;GACzB;;;;;;;;;;;;;;;;IAND;qCAAA;;;;;;;;;;;0GAA6B;KAAA;;;;;;;;;;"
+}

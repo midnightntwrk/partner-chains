@@ -14,9 +14,9 @@ DEFAULT_DOMAIN_SEP = "beeb000000040000000000000000000000000000000000000000000000
 DEFAULT_AMOUNT = str(int(1000000 * random.uniform(0.9, 1.1)))
 DEFAULT_NETWORK = "undeployed"
 DEFAULT_NODE_URL = "ws://henry.node.sc.iog.io:9944"
-DEFAULT_WORK_DIR = "/home/christos/temp/mint-shielded-tokens-contract/"
+DEFAULT_WORK_DIR = "./e2e-tests/utils/benchmarks/mint_contract_state_files"
 DEFAULT_TOOLKIT_CMD = "midnight-node-toolkit"
-DEFAULT_TOOLKIT_JS_PATH = "/home/christos/shielded/midnight-node/util/toolkit-js"
+DEFAULT_TOOLKIT_JS_PATH = "./e2e-tests/utils/benchmarks/toolkit-js"
 
 def run_command(cmd, cwd=None, verbose=True, env=None):
     """Runs a command and returns stdout if successful, exits otherwise."""
@@ -91,7 +91,6 @@ def main():
         "--src-file", deploy_tx_path
     ]
     contract_address = run_command(cmd_contract_addr, verbose=args.verbose)
-    print(f"Contract Address: {contract_address}")
 
     # 3. Fetch contract state path
     contract_state_path = os.path.join(args.work_dir, "contract_state.mn")
@@ -109,7 +108,7 @@ def main():
     abs_mint_bin = os.path.abspath(os.path.join(args.work_dir, "mint.bin"))
     abs_private_state2 = os.path.abspath(os.path.join(args.work_dir, "private_state2.json"))
     abs_mint_zswap = os.path.abspath(os.path.join(args.work_dir, "mint_zswap.json"))
-    
+
     cmd_circuit = [
         args.toolkit_cmd, "generate-intent", "circuit",
         "--config", mint_config_file,
