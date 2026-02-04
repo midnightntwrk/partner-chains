@@ -126,7 +126,8 @@ def main():
             if d.startswith("txs_batch_"):
                 shutil.rmtree(d)
 
-        print("🎉 Load test finished.")
+        total_duration = time.time() - start_time
+        print(f"🎉 Load test finished. Total duration: {total_duration:.2f}s")
 
 if __name__ == "__main__":
     main()
