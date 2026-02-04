@@ -16,7 +16,7 @@ DEFAULT_NETWORK = "undeployed"
 DEFAULT_NODE_URL = "ws://henry.node.sc.iog.io:9944"
 DEFAULT_WORK_DIR = "./e2e-tests/utils/benchmarks/mint_contract_state_files"
 DEFAULT_TOOLKIT_CMD = "midnight-node-toolkit"
-DEFAULT_TOOLKIT_JS_PATH = "./e2e-tests/utils/benchmarks/toolkit-js"
+DEFAULT_TOOLKIT_JS_PATH = "/home/christos/shielded/midnight-node/util/toolkit-js"
 
 def run_command(cmd, cwd=None, verbose=True, env=None):
     """Runs a command and returns stdout if successful, exits otherwise."""
@@ -91,9 +91,21 @@ def main():
         "--src-file", deploy_tx_path
     ]
     contract_address = run_command(cmd_contract_addr, verbose=args.verbose)
+    print(f"Contract Address: {contract_address}")
+
 
     # 3. Fetch contract state path
     contract_state_path = os.path.join(args.work_dir, "contract_state.mn")
+
+    if not os.path.exists(contract_state_path):
+        print(f"--- Fetching contract state ---")
+        cmd_contract_state = [
+            args.toolkit_cmd, "contract-state",
+            "--contract-address", contract_address,
+            "-d", contract_state_path,
+            "-s", args.node_url
+        ]
+        run_command(cmd_contract_state, verbose=args.verbose)
 
     # Derive paths from toolkit-js-path
     mint_config_file = os.path.join(args.toolkit_js_path, "mint", "mint.config.ts")
@@ -107,6 +119,9 @@ def main():
     abs_private_state = os.path.abspath(os.path.join(args.work_dir, "private_state.json"))
     abs_mint_bin = os.path.abspath(os.path.join(args.work_dir, "mint.bin"))
     abs_private_state2 = os.path.abspath(os.path.join(args.work_dir, "private_state2.json"))
+    if not os.path.exists(abs_private_state2):
+        with open(abs_private_state2, "w") as f:
+            f.write("{}")
     abs_mint_zswap = os.path.abspath(os.path.join(args.work_dir, "mint_zswap.json"))
 
     cmd_circuit = [
@@ -129,6 +144,8 @@ def main():
     print("\n--- Submitting mint transaction ---")
     # Ensure compiled_contract_dir is absolute or relative to CWD (which is script dir now)
     # Since we are running toolkit from CWD, we should probably make this absolute to be safe
+    if not os.path.exists(mint_out_dir):
+        os.makedirs(mint_out_dir)
     abs_compiled_contract_dir = os.path.abspath(mint_out_dir)
 
     cmd_send_intent = [
