@@ -10,7 +10,8 @@ def main():
     parser.add_argument("--loading-time", type=int, default=3600, help="Duration in seconds to run the load test (default: 1 hour).")
     parser.add_argument("--batch-size", type=int, default=10, help="Number of transactions to submit per batch (default: 10).")
     parser.add_argument("--batch-delay", type=float, default=6.0, help="Delay in seconds between batches (default: 6.0).")
-    parser.add_argument("--start-seed", type=int, default=10, help="Starting seed index (default: 10).")
+    parser.add_argument("-s", "--start-seed", type=int, default=10, help="Starting seed index (default: 10).")
+    parser.add_argument("-e","--end-seed", type=int, default=1000, help="Ending seed index of the funded wallets (default: 1000).")
     parser.add_argument("--seeds-per-iteration", type=int, default=100, help="Number of seeds to process per iteration (default: 100).")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output.")
     
@@ -20,6 +21,7 @@ def main():
     print(f"   Duration: {args.loading_time}s")
     print(f"   Batch Size: {args.batch_size}")
     print(f"   Batch Delay: {args.batch_delay}s")
+    print(f"   Seed Range: {args.start_seed}-{args.end_seed}")
     
     start_time = time.time()
     current_seed = args.start_seed
@@ -34,7 +36,13 @@ def main():
         
     try:
         while time.time() - start_time < args.loading_time:
+            if current_seed > args.end_seed:
+                print(f"🔄 Reached end of funded range ({args.end_seed}). Wrapping around to start ({args.start_seed}).")
+                current_seed = args.start_seed
+
             end_seed = current_seed + args.seeds_per_iteration - 1
+            if end_seed > args.end_seed:
+                end_seed = args.end_seed
             
             print(f"\n[Iteration {iteration}] Generating txs for seeds {current_seed}-{end_seed}...")
             
@@ -103,7 +111,7 @@ def main():
                 submission_process = None
                 previous_tx_dir = None
             
-            current_seed += args.seeds_per_iteration
+            current_seed = end_seed + 1
             iteration += 1
             
     except KeyboardInterrupt:
