@@ -60,8 +60,8 @@ def main():
             # Call generate_txs_round_robin.py
             gen_cmd = [
                 "python3", "generate_txs_round_robin.py",
-                "--start", str(current_seed),
-                "--end", str(end_seed)
+                "--dest-start", str(current_seed),
+                "--dest-end", str(end_seed)
             ]
             if args.verbose:
                 gen_cmd.append("--verbose")
