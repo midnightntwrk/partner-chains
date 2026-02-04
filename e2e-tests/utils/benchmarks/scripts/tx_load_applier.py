@@ -4,6 +4,7 @@ import subprocess
 import os
 import shutil
 import sys
+import re
 
 def main():
     parser = argparse.ArgumentParser(description="Apply transaction load by generating and submitting batches continuously.")
@@ -26,9 +27,12 @@ def main():
     start_time = time.time()
     current_seed = args.start_seed
     iteration = 0
+    total_successful_txs = 0
 
     submission_process = None
     previous_tx_dir = None
+    submission_log_f = None
+    submission_log_path = None
 
     # Ensure base txs dir exists
     if not os.path.exists("txs"):
@@ -87,6 +91,18 @@ def main():
                 else:
                     print("⚠️  Warning: Previous submission finished before generation. Network might have been idle.")
 
+                if submission_log_f:
+                    submission_log_f.close()
+
+                if submission_log_path and os.path.exists(submission_log_path):
+                    with open(submission_log_path, 'r') as f:
+                        output = f.read()
+                        print(output)
+                        match = re.search(r"Valid: (\d+)", output)
+                        if match:
+                            total_successful_txs += int(match.group(1))
+                    os.remove(submission_log_path)
+
                 # Cleanup previous directory
                 if previous_tx_dir and os.path.exists(previous_tx_dir):
                     shutil.rmtree(previous_tx_dir)
@@ -103,8 +119,10 @@ def main():
                 if args.verbose:
                     submit_cmd.append("--verbose")
 
+                submission_log_path = f"submission_{iteration}.log"
+                submission_log_f = open(submission_log_path, "w")
                 # Run in background
-                submission_process = subprocess.Popen(submit_cmd)
+                submission_process = subprocess.Popen(submit_cmd, stdout=submission_log_f, stderr=subprocess.STDOUT)
                 previous_tx_dir = batch_tx_dir
             else:
                 print("⚠️  No transactions generated. Skipping submission.")
@@ -117,9 +135,22 @@ def main():
     except KeyboardInterrupt:
         print("\n🛑 Stopping load applier...")
     finally:
-        if submission_process and submission_process.poll() is None:
-            print("⏳ Waiting for final submission to complete...")
-            submission_process.wait()
+        if submission_process:
+            if submission_process.poll() is None:
+                print("⏳ Waiting for final submission to complete...")
+                submission_process.wait()
+            
+            if submission_log_f:
+                submission_log_f.close()
+
+            if submission_log_path and os.path.exists(submission_log_path):
+                with open(submission_log_path, 'r') as f:
+                    output = f.read()
+                    print(output)
+                    match = re.search(r"Valid: (\d+)", output)
+                    if match:
+                        total_successful_txs += int(match.group(1))
+                os.remove(submission_log_path)
 
         # Cleanup any remaining batch dirs
         for d in os.listdir("."):
@@ -128,6 +159,7 @@ def main():
 
         total_duration = time.time() - start_time
         print(f"🎉 Load test finished. Total duration: {total_duration:.2f}s")
+        print(f"📈 Total successful transactions: {total_successful_txs}")
 
 if __name__ == "__main__":
     main()
