@@ -295,6 +295,7 @@ def main():
     parser.add_argument("-i", "--dest-indices", nargs='+', help="List of specific seed indices to fund (space or comma-separated, overrides --dest-start/--dest-end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     parser.add_argument("--check-balances", action="store_true", help="Perform balance checks (default: False)")
+    parser.add_argument("--max-threads", type=int, default=None, help="Maximum number of parallel threads")
     args = parser.parse_args()
 
     global AMOUNT
@@ -349,6 +350,8 @@ def main():
     # Determine the number of workers based on the minimum of available resources
     cpu_count = os.cpu_count() or 1
     max_threads = max(1, int(cpu_count * 0.5))
+    if args.max_threads is not None:
+        max_threads = min(max_threads, args.max_threads)
     num_workers = min(len(source_seeds), max_threads)
     print(f"ℹ️  Using {num_workers} threads for execution.")
 

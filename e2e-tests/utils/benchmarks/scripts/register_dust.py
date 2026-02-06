@@ -206,6 +206,7 @@ def register_dust_addresses():
     parser.add_argument("-i", "--dest-indices", nargs='+', help="List of specific seed indices to register (space or comma-separated, overrides --dest-start/--dest-end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by other relay names if present.")
     parser.add_argument("--check-balances", action="store_true", help="Perform balance checks (default: False)")
+    parser.add_argument("--max-threads", type=int, default=None, help="Maximum number of parallel threads")
     args = parser.parse_args()
 
     if args.dest_indices:
@@ -252,6 +253,8 @@ def register_dust_addresses():
     # Determine the number of workers based on the minimum of available resources
     cpu_count = os.cpu_count() or 1
     max_threads = max(1, int(cpu_count * 0.5))
+    if args.max_threads is not None:
+        max_threads = min(max_threads, args.max_threads)
     num_workers = min(total_wallets, len(funding_seeds), max_threads)
     print(f"ℹ️  Using {num_workers} threads for execution.")
 
