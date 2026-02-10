@@ -54,7 +54,9 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, ma
         cmd = [
             toolkit_path, "generate-txs", "send",
             "--src-file", abs_tx_file,
-            "--dest-url", dest_url
+            "--dest-url", dest_url,
+            "--no-watch-progress",
+            "--ignore-block-context"
         ]
 
         if fetch_concurrency is not None:
@@ -119,7 +121,7 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, ma
 
 def submit_transactions(toolkit_path="midnight-node-toolkit"):
     # Disable watching for txs to finalize
-    os.environ["MN_DONT_WATCH_PROGRESS"] = "true"
+    # os.environ["MN_DONT_WATCH_PROGRESS"] = "true"
 
     parser = argparse.ArgumentParser(description="Submit batch transactions.")
     parser.add_argument("-s", "--dest-start", type=int, help="Start index")
