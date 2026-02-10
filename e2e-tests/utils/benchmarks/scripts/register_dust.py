@@ -36,14 +36,14 @@ LOCAL_RELAYS = [
     "ws://localhost:9937",
 ]
 RELAYS = REMOTE_RELAYS
-TOOLKIT_PATH = "midnight-node-toolkit"
+TOOLKIT_CMD = "midnight-node-toolkit"
 DB_PATH = "toolkit.db"
 NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
 DELAY = 0.25
 MAX_RETRIES = 10
 
 
-def register_chunk(indices, funding_seed, node_url, toolkit_path, verbose=False, fetch_concurrency=None):
+def register_chunk(indices, funding_seed, node_url, toolkit_cmd, verbose=False, fetch_concurrency=None):
     failed_seeds = []
     try:
         relay_name = node_url.split('//')[1].split('.')[0]
@@ -65,7 +65,7 @@ def register_chunk(indices, funding_seed, node_url, toolkit_path, verbose=False,
 
             for attempt in range(MAX_RETRIES):
                 cmd = [
-                    toolkit_path, "generate-txs",
+                    toolkit_cmd, "generate-txs",
                     "--src-url", node_url,
                     "--dest-url", node_url,
                     "register-dust-address",
@@ -123,7 +123,7 @@ def register_chunk(indices, funding_seed, node_url, toolkit_path, verbose=False,
                         failed_seeds.append(i)
 
                 except FileNotFoundError:
-                    print(f"\n❌ Error: Could not find '{toolkit_path}'.")
+                    print(f"\n❌ Error: Could not find '{toolkit_cmd}'.")
                     sys.exit(1)
     return failed_seeds
 
@@ -286,7 +286,7 @@ def register_dust_addresses():
                 node_url = args.node_url.replace("ferdie", relay_name)
             else:
                 node_url = args.node_url
-            futures.append(executor.submit(register_chunk, chunk_indices, funding_seeds[i], node_url, TOOLKIT_PATH, args.verbose, args.fetch_concurrency))
+            futures.append(executor.submit(register_chunk, chunk_indices, funding_seeds[i], node_url, TOOLKIT_CMD, args.verbose, args.fetch_concurrency))
 
         failed_seeds = []
         for future in concurrent.futures.as_completed(futures):

@@ -261,6 +261,8 @@ def main():
         log_msg(f"��🔄 Fetching latest chain state from {args.node_url}...")
         try:
             fetch_cmd = [TOOLKIT_CMD, "fetch", "-s", args.node_url]
+            if args.fetch_concurrency is not None:
+                fetch_cmd.extend(["--fetch-concurrency", str(args.fetch_concurrency)])
             log_msg(f"   Running: {' '.join(fetch_cmd)}", to_console=False)
             result = subprocess.run(fetch_cmd, check=True, capture_output=True, text=True)
             if result.stdout: log_msg(f"   STDOUT from fetch:\n{result.stdout.strip()}", to_console=False)

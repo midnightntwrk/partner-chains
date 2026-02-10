@@ -34,7 +34,7 @@ NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
 MAX_RETRIES = 5
 DELAY = 0.25
 
-def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, max_retries, verbose=False, max_workers=1, delay=DELAY):
+def submit_single_tx(i, tx_file, total_files, toolkit_cmd, node_url_pattern, max_retries, verbose=False, max_workers=1, delay=DELAY):
     # Ensure absolute path for the source file since we change CWD
     abs_tx_file = os.path.abspath(tx_file)
 
@@ -52,7 +52,7 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, ma
             dest_url = node_url_pattern
 
         cmd = [
-            toolkit_path, "generate-txs", "send",
+            toolkit_cmd, "generate-txs", "send",
             "--src-file", abs_tx_file,
             "--dest-url", dest_url,
             "--no-watch-progress",
@@ -116,7 +116,7 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, ma
                 print(f"⚠️  Failed to submit {tx_file} to {dest_url}, trying next node...")
                 time.sleep(0.5)
 
-def submit_transactions(toolkit_path="midnight-node-toolkit"):
+def submit_transactions(toolkit_cmd="midnight-node-toolkit"):
     # Disable watching for txs to finalize
     # os.environ["MN_DONT_WATCH_PROGRESS"] = "true"
 
@@ -195,7 +195,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
             print(f"\n\n🚀 Processing Batch {batch_idx + 1}/{len(batches)}: {len(batch)} transactions")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_file = {executor.submit(submit_single_tx, global_index + i, tx_file, total_files_count, toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay): tx_file for i, tx_file in enumerate(batch)}
+            future_to_file = {executor.submit(submit_single_tx, global_index + i, tx_file, total_files_count, toolkit_cmd, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay): tx_file for i, tx_file in enumerate(batch)}
             for future in concurrent.futures.as_completed(future_to_file):
                 tx_file = future_to_file[future]
                 try:
