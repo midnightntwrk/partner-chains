@@ -29,6 +29,7 @@ def main():
     parser.add_argument("-e","--end-seed", type=int, default=1000, help="Ending seed index of the funded wallets (default: 1000).")
     parser.add_argument("--seeds-per-iteration", type=int, default=100, help="Number of seeds to process per iteration (default: 100).")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output.")
+    parser.add_argument("--fetch-concurrency", type=int, default=None, help="Maximum number of concurrent fetch operations.")
 
     args = parser.parse_args()
 
@@ -83,6 +84,8 @@ def main():
             ]
             if args.verbose:
                 gen_cmd.append("--verbose")
+            if args.fetch_concurrency is not None:
+                gen_cmd.extend(["--fetch-concurrency", str(args.fetch_concurrency)])
 
             # We wait for generation to complete
             subprocess.run(gen_cmd, check=True)
@@ -133,6 +136,8 @@ def main():
                 ]
                 if args.verbose:
                     submit_cmd.append("--verbose")
+                if args.fetch_concurrency is not None:
+                    submit_cmd.extend(["--fetch-concurrency", str(args.fetch_concurrency)])
 
                 submission_log_path = f"submission_{iteration}.log"
                 # Run in background with PIPE to capture output

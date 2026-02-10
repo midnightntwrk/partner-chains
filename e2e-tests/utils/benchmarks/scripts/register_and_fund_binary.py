@@ -75,7 +75,7 @@ def format_indices_string(indices):
     else:
         return ", ".join(map(str, sorted_indices))
 
-def run_batch_actions(fund_indices, dest_indices, amount, node_url, verbose=False, check_balances=False):
+def run_batch_actions(fund_indices, dest_indices, amount, node_url, verbose=False, check_balances=False, max_threads=None, fetch_concurrency=None):
     """Runs dust registration and then funds the wallets for a given batch."""
     indices_str = format_indices_string(dest_indices)
 
@@ -96,6 +96,10 @@ def run_batch_actions(fund_indices, dest_indices, amount, node_url, verbose=Fals
         register_cmd.append("--verbose")
     if check_balances:
         register_cmd.append("--check-balances")
+    if max_threads is not None:
+        register_cmd.extend(["--max-threads", str(max_threads)])
+    if fetch_concurrency is not None:
+        register_cmd.extend(["--fetch-concurrency", str(fetch_concurrency)])
 
     log_msg(f"   Running: {' '.join(register_cmd)}")
     try:
@@ -121,6 +125,10 @@ def run_batch_actions(fund_indices, dest_indices, amount, node_url, verbose=Fals
         fund_cmd.append("--verbose")
     if check_balances:
         fund_cmd.append("--check-balances")
+    if max_threads is not None:
+        fund_cmd.extend(["--max-threads", str(max_threads)])
+    if fetch_concurrency is not None:
+        fund_cmd.extend(["--fetch-concurrency", str(fetch_concurrency)])
 
     log_msg(f"   Running: {' '.join(fund_cmd)}")
     try:
@@ -145,6 +153,8 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL to fetch state from.")
     parser.add_argument("--check-balances", action="store_true", help="Perform balance checks (default: False)")
+    parser.add_argument("--max-threads", type=int, default=None, help="Maximum number of parallel threads for child scripts")
+    parser.add_argument("--fetch-concurrency", type=int, default=None, help="Maximum number of concurrent fetch operations.")
     args = parser.parse_args()
 
     # Setup logging
@@ -269,7 +279,9 @@ def main():
             amount,
             args.node_url,
             verbose=args.verbose,
-            check_balances=args.check_balances
+            check_balances=args.check_balances,
+            max_threads=args.max_threads,
+            fetch_concurrency=args.fetch_concurrency
         )
         if success:
             log_msg(f"✅ Batch {i+1}/{len(batches)} complete.\n")

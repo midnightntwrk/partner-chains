@@ -43,7 +43,7 @@ DELAY = 0.25
 MAX_RETRIES = 10
 
 
-def register_chunk(indices, funding_seed, node_url, toolkit_path, verbose=False):
+def register_chunk(indices, funding_seed, node_url, toolkit_path, verbose=False, fetch_concurrency=None):
     failed_seeds = []
     try:
         relay_name = node_url.split('//')[1].split('.')[0]
@@ -72,6 +72,9 @@ def register_chunk(indices, funding_seed, node_url, toolkit_path, verbose=False)
                     "--wallet-seed", wallet_seed,
                     "--funding-seed", funding_seed
                 ]
+
+                if fetch_concurrency is not None:
+                    cmd.extend(["--fetch-concurrency", str(fetch_concurrency)])
 
                 if verbose:
                     print(f"CMD: {' '.join(cmd)}")
@@ -206,6 +209,8 @@ def register_dust_addresses():
     parser.add_argument("-i", "--dest-indices", nargs='+', help="List of specific seed indices to register (space or comma-separated, overrides --dest-start/--dest-end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by other relay names if present.")
     parser.add_argument("--check-balances", action="store_true", help="Perform balance checks (default: False)")
+    parser.add_argument("--max-threads", type=int, default=None, help="Maximum number of parallel threads")
+    parser.add_argument("--fetch-concurrency", type=int, default=None, help="Maximum number of concurrent fetch operations.")
     args = parser.parse_args()
 
     if args.dest_indices:
@@ -281,7 +286,7 @@ def register_dust_addresses():
                 node_url = args.node_url.replace("ferdie", relay_name)
             else:
                 node_url = args.node_url
-            futures.append(executor.submit(register_chunk, chunk_indices, funding_seeds[i], node_url, TOOLKIT_PATH, args.verbose))
+            futures.append(executor.submit(register_chunk, chunk_indices, funding_seeds[i], node_url, TOOLKIT_PATH, args.verbose, args.fetch_concurrency))
 
         failed_seeds = []
         for future in concurrent.futures.as_completed(futures):

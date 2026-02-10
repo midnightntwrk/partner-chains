@@ -84,7 +84,7 @@ def get_address_for_seed_index(index, cwd=None, verbose=False):
         print(f"\n❌ Failed to parse address for seed index {index}")
         sys.exit(1)
 
-def send_transaction(source_index, dest_address, amount_val, node_url_pattern, max_retries, save_to_file=True, cwd=None, verbose=False):
+def send_transaction(source_index, dest_address, amount_val, node_url_pattern, max_retries, save_to_file=True, cwd=None, verbose=False, fetch_concurrency=None):
     """Sends a transaction from source seed index to destination address."""
     source_seed = f"{source_index:064}"
     amount = str(amount_val)
@@ -111,6 +111,9 @@ def send_transaction(source_index, dest_address, amount_val, node_url_pattern, m
             "--destination-address", dest_address,
         ]
 
+        if fetch_concurrency is not None:
+            cmd.extend(["--fetch-concurrency", str(fetch_concurrency)])
+
         if save_to_file:
             timestamp = int(time.time())
             filename = os.path.join("txs", f"tx_{timestamp}_{source_index}.mn")
@@ -135,7 +138,7 @@ def send_transaction(source_index, dest_address, amount_val, node_url_pattern, m
             print(f"⚠️  [Seed {source_index}] Failed on {node_url}, trying next node...")
             time.sleep(0.5)
 
-def process_transfer(i, start_index, end_index, node_url_pattern, max_retries, save_to_file, verbose, delay):
+def process_transfer(i, start_index, end_index, node_url_pattern, max_retries, save_to_file, verbose, delay, fetch_concurrency=None):
     """Handles the transfer for a single index in the ring."""
     try:
         # Calculate target index (circle back to start at the end)
@@ -154,7 +157,7 @@ def process_transfer(i, start_index, end_index, node_url_pattern, max_retries, s
 
             exec_start = time.time()
             dest_addr = get_address_for_seed_index(target_index, cwd=temp_dir, verbose=verbose)
-            send_transaction(i, dest_addr, amount_val, node_url_pattern, max_retries, save_to_file=save_to_file, cwd=temp_dir, verbose=verbose)
+            send_transaction(i, dest_addr, amount_val, node_url_pattern, max_retries, save_to_file=save_to_file, cwd=temp_dir, verbose=verbose, fetch_concurrency=fetch_concurrency)
             if delay > 0:
                 time.sleep(delay)
             exec_time = time.time() - exec_start
@@ -174,6 +177,7 @@ def main():
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     parser.add_argument("--delay", type=float, default=DELAY, help="Delay in seconds after each transaction generation.")
     parser.add_argument("--max-retries", type=int, default=MAX_RETRIES, help="Maximum number of attempts per transaction.")
+    parser.add_argument("--fetch-concurrency", type=int, default=None, help="Maximum number of concurrent fetch operations.")
     args = parser.parse_args()
     save_to_file = not args.submit
     verbose = args.verbose
@@ -212,7 +216,7 @@ def main():
     results = []
     failed_seeds = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_seed = {executor.submit(process_transfer, i, start_index, end_index, args.node_url, args.max_retries, save_to_file, verbose, args.delay): i for i in range(start_index, end_index + 1)}
+        future_to_seed = {executor.submit(process_transfer, i, start_index, end_index, args.node_url, args.max_retries, save_to_file, verbose, args.delay, args.fetch_concurrency): i for i in range(start_index, end_index + 1)}
         for future in concurrent.futures.as_completed(future_to_seed):
             seed = future_to_seed[future]
             try:

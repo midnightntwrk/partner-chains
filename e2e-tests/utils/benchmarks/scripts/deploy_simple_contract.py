@@ -37,6 +37,7 @@ def main():
     parser.add_argument("--node-url", default=DEFAULT_NODE_URL, help="Node URL (source and dest)")
     parser.add_argument("--toolkit-cmd", default=DEFAULT_TOOLKIT_CMD, help="Path to midnight-node-toolkit")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("--fetch-concurrency", type=int, default=None, help="Maximum number of concurrent fetch operations.")
 
     args = parser.parse_args()
 
@@ -49,6 +50,9 @@ def main():
         "-s", args.node_url,
         "-d", args.node_url
     ]
+
+    if args.fetch_concurrency is not None:
+        cmd.extend(["--fetch-concurrency", str(args.fetch_concurrency)])
 
     # Use a temporary directory to avoid database locking issues
     with tempfile.TemporaryDirectory() as temp_dir:

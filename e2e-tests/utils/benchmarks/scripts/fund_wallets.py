@@ -94,7 +94,7 @@ def get_wallet_address(index, cwd=None, verbose=False):
         print(f"\n❌ JSON output does not contain 'unshielded' field: {output}")
         sys.exit(1)
 
-def fund_address(address, funding_seed, node_url, cwd=None, verbose=False):
+def fund_address(address, funding_seed, node_url, cwd=None, verbose=False, fetch_concurrency=None):
     """Funds the given address using the source seed."""
 
     cmd = [
@@ -107,10 +107,13 @@ def fund_address(address, funding_seed, node_url, cwd=None, verbose=False):
         "--dest-url", node_url
     ]
 
+    if fetch_concurrency is not None:
+        cmd.extend(["--fetch-concurrency", str(fetch_concurrency)])
+
     # Run the command (output is captured but we assume success if no error raised)
     run_command(cmd, cwd=cwd, verbose=verbose)
 
-def process_chunk(target_indices, funding_seeds, node_url, verbose=False):
+def process_chunk(target_indices, funding_seeds, node_url, verbose=False, fetch_concurrency=None):
     failed_seeds = []
     try:
         relay_name = node_url.split('//')[1].split('.')[0]
@@ -134,7 +137,7 @@ def process_chunk(target_indices, funding_seeds, node_url, verbose=False):
                 print(f"[Chunk {seed[-4:]}] Funding {addr}...")
                 for attempt in range(MAX_RETRIES):
                     try:
-                        fund_address(addr, seed, node_url, cwd=temp_dir, verbose=verbose)
+                        fund_address(addr, seed, node_url, cwd=temp_dir, verbose=verbose, fetch_concurrency=fetch_concurrency)
                         print(f"✅ Funding sent to {addr}")
                         break
                     except subprocess.CalledProcessError:
@@ -295,6 +298,8 @@ def main():
     parser.add_argument("-i", "--dest-indices", nargs='+', help="List of specific seed indices to fund (space or comma-separated, overrides --dest-start/--dest-end)")
     parser.add_argument("--node-url", type=str, default=NODE_URL, help="Node URL. 'ferdie' will be replaced by relay names if present.")
     parser.add_argument("--check-balances", action="store_true", help="Perform balance checks (default: False)")
+    parser.add_argument("--max-threads", type=int, default=None, help="Maximum number of parallel threads")
+    parser.add_argument("--fetch-concurrency", type=int, default=None, help="Maximum number of concurrent fetch operations.")
     args = parser.parse_args()
 
     global AMOUNT
@@ -383,7 +388,7 @@ def main():
             chunk_len = len(chunk_indices)
             chunk_seeds = [source_seeds[(i * chunk_size + k) % len(source_seeds)] for k in range(chunk_len)]
 
-            futures.append(executor.submit(process_chunk, chunk_indices, chunk_seeds, node_url, args.verbose))
+            futures.append(executor.submit(process_chunk, chunk_indices, chunk_seeds, node_url, args.verbose, args.fetch_concurrency))
 
         failed_seeds = []
         for future in concurrent.futures.as_completed(futures):
