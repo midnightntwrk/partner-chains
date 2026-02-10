@@ -198,7 +198,10 @@ def main():
             sys.exit(1)
 
     print(f"🔄 Fetching latest chain state from {args.node_url}...")
-    run_command([TOOLKIT_CMD, "fetch", "-s", args.node_url], verbose=verbose)
+    fetch_cmd = [TOOLKIT_CMD, "fetch", "-s", args.node_url]
+    if args.fetch_concurrency is not None:
+        fetch_cmd.extend(["--fetch-concurrency", str(args.fetch_concurrency)])
+    run_command(fetch_cmd, verbose=verbose)
 
     if save_to_file:
         if os.path.exists("txs"):

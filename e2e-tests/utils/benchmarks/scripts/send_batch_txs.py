@@ -34,7 +34,7 @@ NODE_URL = "ws://ferdie.node.sc.iog.io:9944" # "ws://localhost:9944"
 MAX_RETRIES = 5
 DELAY = 0.25
 
-def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, max_retries, verbose=False, max_workers=1, delay=DELAY, fetch_concurrency=None):
+def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, max_retries, verbose=False, max_workers=1, delay=DELAY):
     # Ensure absolute path for the source file since we change CWD
     abs_tx_file = os.path.abspath(tx_file)
 
@@ -58,9 +58,6 @@ def submit_single_tx(i, tx_file, total_files, toolkit_path, node_url_pattern, ma
             "--no-watch-progress",
             "--ignore-block-context"
         ]
-
-        if fetch_concurrency is not None:
-            cmd.extend(["--fetch-concurrency", str(fetch_concurrency)])
 
         if verbose:
             print(f"[{i}/{total_files}] Running: {' '.join(cmd)}")
@@ -134,7 +131,6 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
     parser.add_argument("--batch-size", type=int, default=0, help="Number of transactions to submit per batch. Default: 0 (submit all at once).")
     parser.add_argument("--batch-delay", type=float, default=6.0, help="Delay in seconds between batches.")
     parser.add_argument("--tx-dir", type=str, default="txs", help="Directory containing transaction files.")
-    parser.add_argument("--fetch-concurrency", type=int, default=None, help="Maximum number of concurrent fetch operations.")
     args = parser.parse_args()
 
     start_time = time.time()
@@ -199,7 +195,7 @@ def submit_transactions(toolkit_path="midnight-node-toolkit"):
             print(f"\n\n🚀 Processing Batch {batch_idx + 1}/{len(batches)}: {len(batch)} transactions")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_file = {executor.submit(submit_single_tx, global_index + i, tx_file, total_files_count, toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay, fetch_concurrency=args.fetch_concurrency): tx_file for i, tx_file in enumerate(batch)}
+            future_to_file = {executor.submit(submit_single_tx, global_index + i, tx_file, total_files_count, toolkit_path, args.node_url, args.max_retries, verbose=args.verbose, max_workers=max_workers, delay=args.delay): tx_file for i, tx_file in enumerate(batch)}
             for future in concurrent.futures.as_completed(future_to_file):
                 tx_file = future_to_file[future]
                 try:
