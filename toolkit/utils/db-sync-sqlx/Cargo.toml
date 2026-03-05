@@ -15,6 +15,7 @@ workspace = true
 sqlx = { workspace = true }
 sidechain-domain = { workspace = true, features = ["std"] }
 num-traits = { workspace = true }
+hex = { workspace = true }
 
 [lib]
 test = false
