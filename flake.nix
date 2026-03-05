@@ -39,18 +39,18 @@
         };
         rustToolchain = fenix.packages.${system}.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "SJwZ8g0zF2WrKDVmHrVG3pD2RGoQeo24MEXnNx5FyuI=";
+          sha256 = "vra6TkHITpwRyA5oBKAHSX0Mi6CBDNQD+ryPSpxFsfg=";
         };
         isLinux = pkgs.stdenv.isLinux;
         isDarwin = pkgs.stdenv.isDarwin;
 
         # Load e2e-tests workspace and create Python environment for it
         workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./e2e-tests; };
-        
+
         overlay = workspace.mkPyprojectOverlay {
           sourcePreference = "wheel";
         };
-        
+
         pythonSet = (pkgs.callPackage uv2nix.inputs.pyproject-nix.build.packages {
           python = pkgs.python313;
         }).overrideScope (pkgs.lib.composeManyExtensions [
@@ -62,7 +62,7 @@
             psycopg2-binary = pkgs.python313Packages.psycopg2;
           })
         ]);
-        
+
         pythonEnv = pythonSet.mkVirtualEnv "e2e-tests-env" workspace.deps.default;
 
       in

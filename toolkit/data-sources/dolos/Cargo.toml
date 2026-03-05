@@ -43,6 +43,7 @@ tokio = { workspace = true }
 derive-new = { workspace = true }
 chrono = { workspace = true }
 bech32 = { workspace = true }
+hex = { workspace = true }
 
 [features]
 default = []

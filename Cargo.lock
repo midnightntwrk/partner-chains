@@ -2316,6 +2316,7 @@ dependencies = [
 name = "db-sync-sqlx"
 version = "1.8.0"
 dependencies = [
+ "hex",
  "num-traits",
  "sidechain-domain",
  "sqlx",
@@ -7580,6 +7581,7 @@ dependencies = [
  "derive-new",
  "figment",
  "futures",
+ "hex",
  "itertools 0.14.0",
  "log",
  "pallet-sidechain-rpc",
@@ -11318,10 +11320,12 @@ version = "1.8.0"
 dependencies = [
  "async-trait",
  "envy",
+ "hex",
  "log",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "serde_json",
  "sidechain-domain",
  "sp-api",
  "sp-core",

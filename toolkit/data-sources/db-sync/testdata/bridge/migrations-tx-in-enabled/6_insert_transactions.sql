@@ -1,33 +1,10 @@
 DO $$
 DECLARE
-  reserve_datum jsonb := '{
-					"list": [
-						{ "constructor": 0, "fields": [] },
-						{ "constructor": 1, "fields": [] },
-						{ "int": 1 }
-					]
-		}';
-
-  transfer_datum_1 jsonb := '{
-					"list": [
-						{ "constructor": 0, "fields": [] },
-						{ "constructor": 0, "fields": [{ "bytes": "abcd" }] },
-						{ "int": 1 }
-					]
-		}';
-
-  transfer_datum_2 jsonb := '{
-					"list": [
-						{ "constructor": 0, "fields": [] },
-						{ "constructor": 0, "fields": [{ "bytes": "1234" }] },
-						{ "int": 1 }
-					]
-		}';
-
- invalid_datum jsonb := '{
-        "list": [ { "int": 42 } ]
-    }';
-
+ unit_datum jsonb := '{ "constructor": 0, "fields": [] }';
+ reserve_metadatum jsonb := '[]';
+ transfer_metadatum_1 jsonb := '["0xabcd"]';
+ transfer_metadatum_2 jsonb := '["0x1234"]';
+ invalid_metadatum jsonb := '{ "it is no a string": "but a map" }';
 
  native_token_policy hash28type := decode('500000000000000000000000000000000000434845434b504f494e69', 'hex');
  native_token_id integer := 1;
@@ -50,10 +27,7 @@ DECLARE
  ivalid_transfer_tx_hash_2 hash32type := decode('c000000000000000000000000000000000000000000000000000000000000006','hex');
  irrelevant_tx_hash hash32type := decode('4242424242424242424242424242424242424242424242424242424242424242','hex');
 
- reserve_transfer_datum_hash hash32type := decode('0000000000000000000000000000000000000000000000000000000000000001','hex');
- user_tranfer_datum_hash_1 hash32type := decode('1000000000000000000000000000000000000000000000000000000000000001','hex');
- user_tranfer_datum_hash_2 hash32type := decode('1000000000000000000000000000000000000000000000000000000000000002','hex');
- invalid_transfer_datum hash32type := decode('1000000000000000000000000000000000000000000000000000000000000003','hex');
+ unit_datum_hash hash32type := decode('0000000000000000000000000000000000000000000000000000000000000001','hex');
 
 BEGIN
 
@@ -68,24 +42,31 @@ INSERT INTO tx ( id                    , hash                       , block_id, 
 ;
 
 
-INSERT INTO tx_out ( id, tx_id                 , index, address     , address_raw, address_has_script, payment_cred, stake_address_id, value, data_hash                    )
-            VALUES ( 11, init_ics_tx           , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL                        ) -- ICS initial utxo 1
-                  ,( 12, init_ics_tx           , 1    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL                        ) -- ICS initial utxo 2
-                  ,( 13, init_ics_tx           , 2    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL                        ) -- ICS initial utxo 3
-                  ,( 14, init_ics_tx           , 3    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL                        ) -- ICS initial utxo 4
-                  ,( 15, irrelevant_tx         , 0    , 'irrelevant' , ''         , TRUE              , NULL        , NULL            , 0    , NULL                        ) -- Irrelevant transaction with some native token
-                  ,( 21, reserve_transfer_tx   , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , reserve_transfer_datum_hash ) -- transfers 100 tokens
-                  ,( 31, user_transfer_tx_1    , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , user_tranfer_datum_hash_1   ) -- transfers 10 tokens + 100 tokens from previous transaction's utxo
-                  ,( 32, user_transfer_tx_2    , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , user_tranfer_datum_hash_2   ) -- transfers 10 tokens + 110 tokens from previous transaction's utxo
-                  ,( 41, invalid_transfer_tx_1 , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , invalid_transfer_datum      ) -- invalid transfer, invalid datum
-                  ,( 42, invalid_transfer_tx_2 , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL                        ) -- invalid transfer, no datum
+INSERT INTO tx_out ( id, tx_id                 , index, address     , address_raw, address_has_script, payment_cred, stake_address_id, value, data_hash )
+            VALUES ( 11, init_ics_tx           , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- ICS initial utxo 1
+                  ,( 12, init_ics_tx           , 1    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- ICS initial utxo 2
+                  ,( 13, init_ics_tx           , 2    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- ICS initial utxo 3
+                  ,( 14, init_ics_tx           , 3    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- ICS initial utxo 4
+                  ,( 15, irrelevant_tx         , 0    , 'irrelevant' , ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- Irrelevant transaction with some native token
+                  ,( 21, reserve_transfer_tx   , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- transfers 100 tokens
+                  ,( 31, user_transfer_tx_1    , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- transfers 10 tokens + 100 tokens from previous transaction's utxo
+                  ,( 32, user_transfer_tx_2    , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- transfers 10 tokens + 110 tokens from previous transaction's utxo
+                  ,( 41, invalid_transfer_tx_1 , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- invalid transfer, invalid datum
+                  ,( 42, invalid_transfer_tx_2 , 0    , 'ics address', ''         , TRUE              , NULL        , NULL            , 0    , NULL     ) -- invalid transfer, no datum
 ;
 
-INSERT INTO datum ( id, hash                        , tx_id                  , value            )
-           VALUES ( 0 , reserve_transfer_datum_hash , irrelevant_tx          , reserve_datum    )
-                 ,( 1 , user_tranfer_datum_hash_1   , irrelevant_tx          , transfer_datum_1 )
-                 ,( 2 , user_tranfer_datum_hash_2   , irrelevant_tx          , transfer_datum_2 )
-                 ,( 3 , invalid_transfer_datum      , irrelevant_tx          , invalid_datum    )
+INSERT INTO datum ( id, hash            , tx_id         , value      )
+           VALUES ( 0 , unit_datum_hash , irrelevant_tx , unit_datum )
+                , ( 1 , unit_datum_hash , irrelevant_tx , unit_datum )
+                , ( 2 , unit_datum_hash , irrelevant_tx , unit_datum )
+                , ( 3 , unit_datum_hash , irrelevant_tx , unit_datum )
+;
+
+INSERT INTO tx_metadata ( id , "key"   , json                 , bytes , tx_id                 )
+	             VALUES ( 0  , 6500973 , reserve_metadatum    , ''    , reserve_transfer_tx   )
+	                  , ( 1  , 6500973 , transfer_metadatum_1 , ''    , user_transfer_tx_1    )
+	                  , ( 2  , 6500973 , transfer_metadatum_2 , ''    , user_transfer_tx_2    )
+	                  , ( 3  , 6500973 , invalid_metadatum    , ''    , invalid_transfer_tx_1 )
 ;
 
 INSERT INTO multi_asset ( id                  , policy              , name               , fingerprint       )
