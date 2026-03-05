@@ -1,4 +1,3 @@
-use clap::command;
 use partner_chains_cli::{AURA, GRANDPA, KeyDefinition};
 use partner_chains_demo_runtime::opaque::SessionKeys;
 use partner_chains_node_commands::{PartnerChainRuntime, PartnerChainsSubcommand};

@@ -2295,6 +2295,7 @@ dependencies = [
 name = "db-sync-sqlx"
 version = "1.8.1"
 dependencies = [
+ "hex",
  "num-traits",
  "sidechain-domain",
  "sqlx",
@@ -11288,10 +11289,12 @@ version = "1.8.1"
 dependencies = [
  "async-trait",
  "envy",
+ "hex",
  "log",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "serde_json",
  "sidechain-domain",
  "sp-api",
  "sp-core",
