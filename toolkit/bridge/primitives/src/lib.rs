@@ -422,7 +422,7 @@ impl<RecipientAddress: Encode + Send + Sync> TokenBridgeInherentDataProvider<Rec
 		let (Some(last_checkpoint), Some(main_chain_scripts)) =
 			(api.get_last_data_checkpoint(parent_hash)?, api.get_main_chain_scripts(parent_hash)?)
 		else {
-			log::info!("💤 Skipping token bridge transfer observation. Pallet not configured.");
+			log::debug!("💤 Skipping token bridge transfer observation. Pallet not configured.");
 			return Ok(Self::Inert);
 		};
 
