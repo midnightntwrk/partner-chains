@@ -39,7 +39,7 @@
         };
         rustToolchain = fenix.packages.${system}.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "vra6TkHITpwRyA5oBKAHSX0Mi6CBDNQD+ryPSpxFsfg=";
+          sha256 = "qqF33vNuAdU5vua96VKVIwuc43j4EFeEXbjQ6+l4mO4=";
         };
         isLinux = pkgs.stdenv.isLinux;
         isDarwin = pkgs.stdenv.isDarwin;
