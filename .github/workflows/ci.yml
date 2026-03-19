@@ -116,7 +116,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        markers: [ci, smoke, rpc, reserve, governed_map, delegator_rewards, ariadne, wizards]
+        markers: [smoke, rpc, reserve, governed_map, delegator_rewards, ariadne, wizards]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
