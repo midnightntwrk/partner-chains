@@ -80,6 +80,9 @@ jobs:
       - name: Build
         run: cargo build --locked --release
 
+      - name: Test
+        run: cargo test --all-features --locked
+
       - name: sccache stats
         if: always()
         run: sccache -s || true
