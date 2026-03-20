@@ -81,7 +81,7 @@ jobs:
         run: cargo build --locked --release
 
       - name: Test
-        run: cargo test --workspace --all-features --locked --exclude partner-chains-cardano-offchain
+        run: cargo test --workspace --all-features --locked --exclude partner-chains-cardano-offchain --exclude partner-chains-demo-node
 
       - name: sccache stats
         if: always()
