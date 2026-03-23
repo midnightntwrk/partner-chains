@@ -3,11 +3,11 @@ name: CI
 on:
   push:
     branches:
-      - v1.8-fixes
+      - main
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - v1.8-fixes
+      - main
   workflow_dispatch:
 
 permissions:
