@@ -24,17 +24,6 @@ runs:
       with:
         ref: ${{ inputs.sha }}
 
-    - name: Acquire AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ env.AWS_ROLE_ARN_SECRET }}
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Login to ECR
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.ECR_REGISTRY_SECRET }}
-
     - name: Deploy local environment
       run: |
         mkdir -p dev/local-environment/configurations/tests/e2e-tests
