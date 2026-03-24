@@ -336,14 +336,14 @@ impl BlockDataSourceImpl {
 		let latest_block = db_model::get_latest_block_info(&self.pool)
 			.await
 			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
-		let block = db_model::get_block_by_hash(&self.pool, hash.clone())
-			.await
-			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
-
 		let Some(latest_block) = latest_block else {
 			return Err(StableBlockByHashError::LatestBlockUnavailable(hash));
 		};
 		self.observe_latest_cardano_block_metrics(&latest_block);
+
+		let block = db_model::get_block_by_hash(&self.pool, hash.clone())
+			.await
+			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
 		let Some(block) = block else {
 			return Err(StableBlockByHashError::BlockNotFound(hash));
 		};
