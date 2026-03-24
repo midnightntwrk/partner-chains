@@ -7,7 +7,7 @@ use crate::{
 use chrono::{DateTime, NaiveDateTime, TimeDelta};
 use derive_new::new;
 use figment::{Figment, providers::Env};
-use log::{debug, info};
+use log::{debug, info, warn};
 use serde::Deserialize;
 use sidechain_domain::mainchain_epoch::{MainchainEpochConfig, MainchainEpochDerivation};
 use sidechain_domain::*;
@@ -20,6 +20,35 @@ use std::{
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug, thiserror::Error)]
+enum StableBlockByHashError {
+	#[error("Database query failed: {0}")]
+	Database(String),
+	#[error("Block with hash {0} was not found.")]
+	BlockNotFound(McBlockHash),
+	#[error("Latest block info was unavailable while checking block hash {0}.")]
+	LatestBlockUnavailable(McBlockHash),
+	#[error(
+		"Block with hash {hash} is not stable yet: block {block_no} requires latest block >= {required_latest_block_no}, but latest block is {latest_block_no}."
+	)]
+	NotStableYet {
+		hash: McBlockHash,
+		block_no: u32,
+		required_latest_block_no: u32,
+		latest_block_no: u32,
+	},
+	#[error(
+		"Block with hash {hash} has timestamp {block_time}, outside allowed range [{min_allowed_time}..={max_allowed_time}] for reference timestamp {reference_timestamp}."
+	)]
+	TimestampOutOfRange {
+		hash: McBlockHash,
+		block_time: NaiveDateTime,
+		min_allowed_time: NaiveDateTime,
+		max_allowed_time: NaiveDateTime,
+		reference_timestamp: NaiveDateTime,
+	},
+}
 
 /// Db-Sync data source that queries Cardano block information
 ///
@@ -219,13 +248,15 @@ impl BlockDataSourceImpl {
 			Ok(Some(From::from(block)))
 		} else {
 			debug!("Block by hash: {hash}, not found in cache, serving from database.");
-			if let Some(block_by_hash) =
-				self.get_stable_block_by_hash_from_db(hash, reference_timestamp).await?
-			{
-				self.fill_cache(&block_by_hash).await?;
-				Ok(Some(MainchainBlock::from(block_by_hash)))
-			} else {
-				Ok(None)
+			match self.get_stable_block_by_hash_from_db(hash, reference_timestamp).await {
+				Ok(block_by_hash) => {
+					self.fill_cache(&block_by_hash).await?;
+					Ok(Some(MainchainBlock::from(block_by_hash)))
+				},
+				Err(err) => {
+					warn!("stable block lookup rejected: {err}");
+					Ok(None)
+				},
 			}
 		}
 	}
@@ -249,16 +280,46 @@ impl BlockDataSourceImpl {
 		&self,
 		hash: McBlockHash,
 		reference_timestamp: NaiveDateTime,
-	) -> Result<Option<Block>, Box<dyn std::error::Error + Send + Sync>> {
-		let block = db_model::get_block_by_hash(&self.pool, hash).await?;
-		let latest_block = db_model::get_latest_block_info(&self.pool).await?;
-		Ok(block
-			.zip(latest_block)
-			.filter(|(block, latest_block)| {
-				block.block_no.saturating_add(self.security_parameter) <= latest_block.block_no
-					&& self.is_block_time_valid(block, reference_timestamp)
-			})
-			.map(|(block, _)| block))
+	) -> std::result::Result<Block, StableBlockByHashError> {
+		let block = db_model::get_block_by_hash(&self.pool, hash.clone())
+			.await
+			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
+		let latest_block = db_model::get_latest_block_info(&self.pool)
+			.await
+			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
+
+		let Some(block) = block else {
+			return Err(StableBlockByHashError::BlockNotFound(hash));
+		};
+		let Some(latest_block) = latest_block else {
+			return Err(StableBlockByHashError::LatestBlockUnavailable(hash));
+		};
+
+		let required_latest_block_no = block.block_no.saturating_add(self.security_parameter);
+		let is_stable = required_latest_block_no <= latest_block.block_no;
+		let min_allowed_time = self.min_block_allowed_time(reference_timestamp);
+		let max_allowed_time = self.max_allowed_block_time(reference_timestamp);
+		let is_time_valid = self.is_block_time_valid(&block, reference_timestamp);
+
+		if !is_stable {
+			return Err(StableBlockByHashError::NotStableYet {
+				hash,
+				block_no: block.block_no.0,
+				required_latest_block_no: required_latest_block_no.0,
+				latest_block_no: latest_block.block_no.0,
+			});
+		}
+		if !is_time_valid {
+			return Err(StableBlockByHashError::TimestampOutOfRange {
+				hash,
+				block_time: block.time,
+				min_allowed_time,
+				max_allowed_time,
+				reference_timestamp,
+			});
+		}
+
+		Ok(block)
 	}
 
 	/// Caches stable blocks for lookup by hash.
