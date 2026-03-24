@@ -332,7 +332,7 @@ impl BlockDataSourceImpl {
 		&self,
 		hash: McBlockHash,
 		reference_timestamp: NaiveDateTime,
-	) -> std::result::Result<Block, StableBlockByHashError> {
+	) -> Result<Block, StableBlockByHashError> {
 		let latest_block = db_model::get_latest_block_info(&self.pool)
 			.await
 			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
