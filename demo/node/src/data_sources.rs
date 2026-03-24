@@ -119,7 +119,9 @@ pub async fn create_cached_db_sync_data_sources(
 ) -> Result<DataSources, Box<dyn Error + Send + Sync + 'static>> {
 	let pool = partner_chains_db_sync_data_sources::get_connection_from_env().await?;
 	// block data source is reused between mc_hash and sidechain_rpc to share cache
-	let block = Arc::new(BlockDataSourceImpl::new_from_env(pool.clone()).await?);
+	let block = Arc::new(
+		BlockDataSourceImpl::new_from_env_with_metrics(pool.clone(), metrics_opt.clone()).await?,
+	);
 	Ok(DataSources {
 		sidechain_rpc: Arc::new(SidechainRpcDataSourceImpl::new(
 			block.clone(),

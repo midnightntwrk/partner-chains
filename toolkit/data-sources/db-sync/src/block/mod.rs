@@ -3,6 +3,7 @@ use crate::{
 	DataSourceError::*,
 	data_sources::read_mc_epoch_config,
 	db_model::{self, Block, BlockNumber, SlotNumber},
+	metrics::McFollowerMetrics,
 };
 use chrono::{DateTime, NaiveDateTime, TimeDelta};
 use derive_new::new;
@@ -81,6 +82,8 @@ pub struct BlockDataSourceImpl {
 	cache_size: u16,
 	/// Internal block cache
 	stable_blocks_cache: Arc<Mutex<BlocksCache>>,
+	/// Prometheus metrics client
+	metrics_opt: Option<McFollowerMetrics>,
 }
 
 impl BlockDataSourceImpl {
@@ -172,10 +175,20 @@ impl BlockDataSourceImpl {
 	pub async fn new_from_env(
 		pool: PgPool,
 	) -> std::result::Result<Self, Box<dyn Error + Send + Sync + 'static>> {
-		Ok(Self::from_config(
+		Self::new_from_env_with_metrics(pool, None).await
+	}
+
+	/// Creates a new instance of [BlockDataSourceImpl], reading configuration from the
+	/// environment and wiring in an optional Prometheus metrics client.
+	pub async fn new_from_env_with_metrics(
+		pool: PgPool,
+		metrics_opt: Option<McFollowerMetrics>,
+	) -> std::result::Result<Self, Box<dyn Error + Send + Sync + 'static>> {
+		Ok(Self::from_config_with_metrics(
 			pool,
 			DbSyncBlockDataSourceConfig::from_env()?,
 			&read_mc_epoch_config()?,
+			metrics_opt,
 		))
 	}
 
@@ -188,6 +201,30 @@ impl BlockDataSourceImpl {
 			block_stability_margin,
 		}: DbSyncBlockDataSourceConfig,
 		mc_epoch_config: &MainchainEpochConfig,
+	) -> BlockDataSourceImpl {
+		Self::from_config_with_metrics(
+			pool,
+			DbSyncBlockDataSourceConfig {
+				cardano_security_parameter,
+				cardano_active_slots_coeff,
+				block_stability_margin,
+			},
+			mc_epoch_config,
+			None,
+		)
+	}
+
+	/// Creates a new instance of [BlockDataSourceImpl], using passed configuration and an
+	/// optional Prometheus metrics client.
+	pub fn from_config_with_metrics(
+		pool: PgPool,
+		DbSyncBlockDataSourceConfig {
+			cardano_security_parameter,
+			cardano_active_slots_coeff,
+			block_stability_margin,
+		}: DbSyncBlockDataSourceConfig,
+		mc_epoch_config: &MainchainEpochConfig,
+		metrics_opt: Option<McFollowerMetrics>,
 	) -> BlockDataSourceImpl {
 		let k: f64 = cardano_security_parameter.into();
 		let slot_duration: f64 = mc_epoch_config.slot_duration_millis.millis() as f64;
@@ -203,6 +240,7 @@ impl BlockDataSourceImpl {
 			block_stability_margin,
 			cache_size,
 			BlocksCache::new_arc_mutex(),
+			metrics_opt,
 		)
 	}
 	async fn get_latest_block(
@@ -236,6 +274,20 @@ impl BlockDataSourceImpl {
 			&& block.time <= self.max_allowed_block_time(timestamp)
 	}
 
+	fn observe_latest_cardano_block_metrics(&self, latest_block: &Block) {
+		if let Some(metrics) = &self.metrics_opt {
+			metrics.latest_cardano_block_number().set(u64::from(latest_block.block_no.0));
+			metrics.latest_cardano_block_slot().set(latest_block.slot_no.0);
+		}
+	}
+
+	fn observe_referenced_cardano_block_metrics(&self, block: &Block) {
+		if let Some(metrics) = &self.metrics_opt {
+			metrics.referenced_cardano_block_number().set(u64::from(block.block_no.0));
+			metrics.referenced_cardano_block_slot().set(block.slot_no.0);
+		}
+	}
+
 	async fn get_stable_block_by_hash(
 		&self,
 		hash: McBlockHash,
@@ -254,7 +306,7 @@ impl BlockDataSourceImpl {
 					Ok(Some(MainchainBlock::from(block_by_hash)))
 				},
 				Err(err) => {
-					warn!("stable block lookup rejected: {err}");
+					warn!("Get stable block by hash failed: {err}");
 					Ok(None)
 				},
 			}
@@ -281,19 +333,21 @@ impl BlockDataSourceImpl {
 		hash: McBlockHash,
 		reference_timestamp: NaiveDateTime,
 	) -> std::result::Result<Block, StableBlockByHashError> {
-		let block = db_model::get_block_by_hash(&self.pool, hash.clone())
-			.await
-			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
 		let latest_block = db_model::get_latest_block_info(&self.pool)
 			.await
 			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
+		let block = db_model::get_block_by_hash(&self.pool, hash.clone())
+			.await
+			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
 
-		let Some(block) = block else {
-			return Err(StableBlockByHashError::BlockNotFound(hash));
-		};
 		let Some(latest_block) = latest_block else {
 			return Err(StableBlockByHashError::LatestBlockUnavailable(hash));
 		};
+		self.observe_latest_cardano_block_metrics(&latest_block);
+		let Some(block) = block else {
+			return Err(StableBlockByHashError::BlockNotFound(hash));
+		};
+		self.observe_referenced_cardano_block_metrics(&block);
 
 		let required_latest_block_no = block.block_no.saturating_add(self.security_parameter);
 		let is_stable = required_latest_block_no <= latest_block.block_no;

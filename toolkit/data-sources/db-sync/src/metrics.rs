@@ -1,7 +1,7 @@
 //! Substrate Prometheus metrics client for Db-Sync-based Partner Chain data sources
 use log::warn;
 use substrate_prometheus_endpoint::{
-	CounterVec, HistogramOpts, HistogramVec, Opts, PrometheusError, Registry, U64, register,
+	CounterVec, Gauge, HistogramOpts, HistogramVec, Opts, PrometheusError, Registry, U64, register,
 };
 
 /// Substrate Prometheus metrics client used by Partner Chain data sources
@@ -9,6 +9,10 @@ use substrate_prometheus_endpoint::{
 pub struct McFollowerMetrics {
 	time_elapsed: HistogramVec,
 	call_count: CounterVec<U64>,
+	latest_cardano_block_number: Gauge<U64>,
+	latest_cardano_block_slot: Gauge<U64>,
+	referenced_cardano_block_number: Gauge<U64>,
+	referenced_cardano_block_slot: Gauge<U64>,
 }
 
 impl McFollowerMetrics {
@@ -17,6 +21,18 @@ impl McFollowerMetrics {
 	}
 	pub(crate) fn call_count(&self) -> &CounterVec<U64> {
 		&self.call_count
+	}
+	pub(crate) fn latest_cardano_block_number(&self) -> &Gauge<U64> {
+		&self.latest_cardano_block_number
+	}
+	pub(crate) fn latest_cardano_block_slot(&self) -> &Gauge<U64> {
+		&self.latest_cardano_block_slot
+	}
+	pub(crate) fn referenced_cardano_block_number(&self) -> &Gauge<U64> {
+		&self.referenced_cardano_block_number
+	}
+	pub(crate) fn referenced_cardano_block_slot(&self) -> &Gauge<U64> {
+		&self.referenced_cardano_block_slot
 	}
 	pub(crate) fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
@@ -38,6 +54,34 @@ impl McFollowerMetrics {
 					),
 					&["method_name"],
 				)?,
+				registry,
+			)?,
+			latest_cardano_block_number: register(
+				Gauge::with_opts(Opts::new(
+					"partner_chains_data_source_latest_cardano_block_number",
+					"Latest Cardano block number observed during a data source lookup",
+				))?,
+				registry,
+			)?,
+			latest_cardano_block_slot: register(
+				Gauge::with_opts(Opts::new(
+					"partner_chains_data_source_latest_cardano_block_slot",
+					"Latest Cardano block slot observed during a data source lookup",
+				))?,
+				registry,
+			)?,
+			referenced_cardano_block_number: register(
+				Gauge::with_opts(Opts::new(
+					"partner_chains_data_source_referenced_cardano_block_number",
+					"Referenced Cardano block number observed during a data source lookup",
+				))?,
+				registry,
+			)?,
+			referenced_cardano_block_slot: register(
+				Gauge::with_opts(Opts::new(
+					"partner_chains_data_source_referenced_cardano_block_slot",
+					"Referenced Cardano block slot observed during a data source lookup",
+				))?,
 				registry,
 			)?,
 		})
@@ -105,13 +149,17 @@ pub(crate) use observed_async_trait;
 #[cfg(test)]
 pub(crate) mod mock {
 	use crate::metrics::McFollowerMetrics;
-	use substrate_prometheus_endpoint::{CounterVec, HistogramOpts, HistogramVec, Opts};
+	use substrate_prometheus_endpoint::{CounterVec, Gauge, HistogramOpts, HistogramVec, Opts};
 
 	pub(crate) fn test_metrics() -> McFollowerMetrics {
 		McFollowerMetrics {
 			time_elapsed: HistogramVec::new(HistogramOpts::new("test", "test"), &["method_name"])
 				.unwrap(),
 			call_count: CounterVec::new(Opts::new("test", "test"), &["method_name"]).unwrap(),
+			latest_cardano_block_number: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
+			latest_cardano_block_slot: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
+			referenced_cardano_block_number: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
+			referenced_cardano_block_slot: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
 		}
 	}
 }

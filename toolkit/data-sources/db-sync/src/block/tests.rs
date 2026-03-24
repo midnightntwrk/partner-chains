@@ -1,4 +1,5 @@
 use crate::block::{BlockDataSourceImpl, BlocksCache, MainchainBlock};
+use crate::metrics::mock::test_metrics;
 use chrono::{NaiveDateTime, TimeDelta};
 use hex_literal::hex;
 use sidechain_domain::mainchain_epoch::{Duration, MainchainEpochConfig, Timestamp};
@@ -254,6 +255,24 @@ async fn test_get_stable_block_caching(pool: PgPool) {
 	assert_eq!(result, Some(MainchainBlock { hash: dummy_hash(3), ..block_3() }))
 }
 
+#[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
+async fn test_records_cardano_block_metrics(pool: PgPool) {
+	let metrics = test_metrics();
+	let source =
+		BlockDataSourceImpl { metrics_opt: Some(metrics.clone()), ..mk_datasource(pool, 2) };
+
+	let result = source
+		.get_stable_block_for(block_2().hash, BLOCK_4_TS_MILLIS.into())
+		.await
+		.unwrap();
+
+	assert_eq!(result, Some(block_2()));
+	assert_eq!(metrics.latest_cardano_block_number().get(), 5,);
+	assert_eq!(metrics.latest_cardano_block_slot().get(), 193500,);
+	assert_eq!(metrics.referenced_cardano_block_number().get(), 2,);
+	assert_eq!(metrics.referenced_cardano_block_slot().get(), 190500,);
+}
+
 fn mk_datasource(pool: PgPool, security_parameter: u32) -> BlockDataSourceImpl {
 	BlockDataSourceImpl {
 		pool,
@@ -264,6 +283,7 @@ fn mk_datasource(pool: PgPool, security_parameter: u32) -> BlockDataSourceImpl {
 		block_stability_margin: 0,
 		cache_size: 100,
 		stable_blocks_cache: BlocksCache::new_arc_mutex(),
+		metrics_opt: None,
 	}
 }
 
