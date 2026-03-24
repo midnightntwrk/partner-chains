@@ -3,11 +3,11 @@ name: CI
 on:
   push:
     branches:
-      - v1.8-fixes
+      - main
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - v1.8-fixes
+      - main
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: "1.90.0"
+  RUST_TOOLCHAIN: "1.94.0"
   SCCACHE_GHA_ENABLED: true
   RUSTC_WRAPPER: sccache
 
