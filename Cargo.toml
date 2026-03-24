@@ -108,68 +108,75 @@ lto = "fat"
 codegen-units = 1
 
 [workspace.dependencies]
-anyhow = "1.0.81"
+anyhow = "1.0.102"
 async-trait = "0.1"
-assert_cmd = "2.0.14"
+assert_cmd = "2.2.0"
 cardano-serialization-lib = { default-features = false, version = "15.0.3" }
 cbor_event = { version = "2.4.0" }
-colored = { version = "3.0.0" }
-clap = { version = "4.5", features = ["derive"] }
-ed25519-zebra = { version = "4.0.3" }
+colored = { version = "3.1.1" }
+clap = { version = "4.6", features = ["derive"] }
+ed25519-zebra = { version = "4.2.0" }
 figment = { version = "0.10.19", features = ["env", "test"] }
 fraction = { version = "0.15.3", default-features = false }
-futures = { version = "0.3.30", features = ["thread-pool"] }
+futures = { version = "0.3.32", features = ["thread-pool"] }
 hex = { version = "0.4.3", features = ["alloc"], default-features = false }
-hex-literal = "1.0.0"
+hex-literal = "1.1.0"
 itertools = "0.14.0"
-jsonrpsee = { version = "0.24", features = ["client-core", "server", "macros"] }
-libp2p-identity = "0.2"
-log = { version = "0.4", default-features = false }
-minicbor = { version = "0.25.1", features = ["alloc"] }
+jsonrpsee = { version = "0.24.10", features = [
+	"client-core",
+	"server",
+	"macros",
+] }
+libp2p-identity = "0.2.13"
+log = { version = "0.4.29", default-features = false }
+minicbor = { version = "2.2.1", features = ["alloc"] }
 num-bigint = { version = "0.4.3", default-features = false }
 num-traits = { version = "0.2.17", default-features = false }
 parity-scale-codec = { package = "parity-scale-codec", version = "3.7.5", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
 ] }
-quickcheck = { version = "1.0.3" }
-proptest = { version = "1.7.0" }
+quickcheck = { version = "1.1.0" }
+proptest = { version = "1.11.0" }
 scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
 testcontainers = { version = "0.27" }
 quickcheck_macros = { version = "1" }
 quote = "1.0"
-rand_chacha = { version = "0.9.0", default-features = false }
-rand = { version = "0.9.1", default-features = false }
+rand_chacha = { version = "0.10.0", default-features = false }
+rand = { version = "0.10.0", default-features = false }
 tokio-retry = { version = "0.3" }
 secp256k1 = { version = "0.30.0", default-features = false }
 k256 = { version = "0.13.4", default-features = false }
-serde = { version = "1.0.209", default-features = false, features = [
+serde = { version = "1.0.228", default-features = false, features = [
 	"derive",
 	"alloc",
 ] }
-serde_json = { version = '1.0.132', default-features = false, features = [
+serde_json = { version = '1.0.149', default-features = false, features = [
 	"alloc",
 ] }
 syn = "2.0"
-tempfile = "3.10.1"
-thiserror = { version = "2.0", default-features = false }
-time = { version = "0.3.36", default-features = false }
-tokio = { version = "1.46", features = ["rt-multi-thread", "macros"] }
-uplc = { version = "1.1.6" }
-lru = { version = "0.16.0" }
+tempfile = "3.27.0"
+thiserror = { version = "2.0.18", default-features = false }
+time = { version = "0.3.47", default-features = false }
+tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
+uplc = { version = "1.1.21" }
+lru = { version = "0.16.3" }
 pretty_assertions = { version = "1.4.1" }
-derive_more = { version = "2.0.1", default-features = false }
+derive_more = { version = "2.1.1", default-features = false }
 num-derive = { version = "0.4.2" }
-env_logger = { version = "0.11.8" }
-bigdecimal = { version = "0.4.8" }
+env_logger = { version = "0.11" }
+bigdecimal = { version = "0.4" }
 blake2b_simd = { version = "1.0.2", default-features = false }
 derive-new = { version = "0.7.0" }
 inquire = { version = "0.7.5" }
-parking_lot = { version = "0.12.4", default-features = false }
+parking_lot = { version = "0.12.5", default-features = false }
 envy = { version = "0.4.2" }
-log4rs = { version = "1.4.0", default-features = false, features = ["console_appender", "file_appender"] }
+log4rs = { version = "1.4.0", default-features = false, features = [
+	"console_appender",
+	"file_appender",
+] }
 sqlx = { version = "0.8.6", default-features = false, features = [
 	"runtime-tokio-rustls",
 	"postgres",
@@ -178,9 +185,8 @@ sqlx = { version = "0.8.6", default-features = false, features = [
 	"migrate",
 	"bigdecimal",
 ] }
-derive-where = { version = "1.2.7", default-features = false }
-once_cell = { version = "1.21.3", default-features = false }
-paste = { version = "1.0.15" }
+derive-where = { version = "1.6.1", default-features = false }
+once_cell = { version = "1.21.4", default-features = false }
 
 # substrate dependencies
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }

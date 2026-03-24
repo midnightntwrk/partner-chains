@@ -176,7 +176,7 @@ impl Command {
 				let candidates = potential_registered_candidates
 					.clone()
 					.into_iter()
-					.choose_multiple(rng, registered_pool_size);
+					.sample(rng, registered_pool_size);
 				(registered_pool_size, candidates)
 			},
 		};
