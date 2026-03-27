@@ -7210,6 +7210,7 @@ dependencies = [
  "plutus",
  "plutus-datum-derive",
  "pretty_assertions",
+ "scale-info",
  "secp256k1 0.30.0",
  "serde",
  "serde_json",
