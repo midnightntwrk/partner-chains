@@ -7,15 +7,16 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[package.metadata.cargo-shear]
+ignored = ["num-traits"]
+
 [lints]
 workspace = true
 
 [dependencies]
 sp-core = { workspace = true, features = ["serde"] }
-sp-crypto-hashing = { workspace = true }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
-num-bigint = { workspace = true }
 plutus = { workspace = true }
 plutus-datum-derive = { workspace = true }
 serde = { workspace = true, optional = true }
@@ -28,7 +29,6 @@ sp-std = { workspace = true }
 blake2b_simd = { workspace = true }
 figment = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
-bech32 = { workspace = true }
 sp-io = { workspace = true }
 secp256k1 = { workspace = true, features = ["hashes", "alloc"] }
 ed25519-zebra = { workspace = true, optional = true }
@@ -46,10 +46,8 @@ std = [
 	"sp-core/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
-	"num-bigint/std",
 	"figment",
 	"thiserror",
-	"bech32/std",
 	"sp-io/std",
 	"secp256k1/std",
 	"secp256k1/global-context",

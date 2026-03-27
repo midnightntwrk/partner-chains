@@ -18,7 +18,6 @@ workspace = true
 [dependencies]
 async-trait = { workspace = true }
 parity-scale-codec = { workspace = true, default-features = true }
-fork-tree = { workspace = true, default-features = true }
 futures = { workspace = true }
 log = { workspace = true, default-features = true }
 parking_lot = { workspace = true, default-features = true }
@@ -39,14 +38,14 @@ sp-inherents = { workspace = true, default-features = true }
 sp-keystore = { workspace = true, default-features = true }
 sp-runtime = { workspace = true, default-features = true }
 sp-partner-chains-consensus-aura = { workspace = true, default-features = true }
-thiserror = { workspace = true }
+#thiserror = { workspace = true }
 
 [dev-dependencies]
 parking_lot = { workspace = true, default-features = true }
 tempfile = { workspace = true }
 sc-block-builder = { workspace = true, default-features = true }
 sc-keystore = { workspace = true, default-features = true }
-sc-network = { workspace = true, default-features = true }
+#sc-network = { workspace = true, default-features = true }
 sc-network-test = { workspace = true }
 sp-keyring = { workspace = true, default-features = true }
 sp-timestamp = { workspace = true, default-features = true }

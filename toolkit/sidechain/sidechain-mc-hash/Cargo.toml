@@ -23,7 +23,6 @@ sp-runtime = { workspace = true, features = ["std"] }
 sp-timestamp = { workspace = true }
 thiserror = { workspace = true }
 derive-new = { workspace = true, optional = true }
-serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
@@ -31,4 +30,3 @@ derive-new = { workspace = true }
 
 [features]
 mock = ["derive-new"]
-serde = ["dep:serde"]

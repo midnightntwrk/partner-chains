@@ -10,6 +10,9 @@ license = "Unlicense"
 publish = false
 build = "build.rs"
 
+[package.metadata.cargo-shear]
+ignored = ["sc-client-db"]
+
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
@@ -20,9 +23,7 @@ name = "partner-chains-demo-node"
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
 clap = { workspace = true }
-futures = { workspace = true }
 log = { workspace = true }
 sc-cli = { workspace = true, features = ["rocksdb"] }
 sp-core = { workspace = true }
@@ -36,11 +37,9 @@ sc-consensus-aura = { workspace = true }
 sc-partner-chains-consensus-aura = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-partner-chains-consensus-aura = { workspace = true }
-sp-consensus = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
 sc-consensus-grandpa-rpc = { workspace = true }
-sp-consensus-grandpa = { workspace = true }
 sc-client-api = { workspace = true }
 # This node template uses RocksDB as the storage backend by default.
 sc-client-db = { workspace = true, features = ["rocksdb"] }
@@ -48,24 +47,16 @@ sp-runtime = { workspace = true }
 sp-io = { workspace = true }
 sp-timestamp = { workspace = true }
 sp-inherents = { workspace = true }
-sp-keyring = { workspace = true }
 authority-selection-inherents = { workspace = true }
-frame-system = { workspace = true }
-pallet-transaction-payment = { workspace = true }
 sp-block-production-log = { workspace = true }
 sidechain-domain = { workspace = true }
 sidechain-slots = { workspace = true }
 sp-sidechain = { workspace = true }
 pallet-sidechain-rpc = { workspace = true }
-pallet-session-validator-management = { workspace = true }
 sp-session-validator-management = { workspace = true }
 sp-session-validator-management-query = { workspace = true }
 pallet-session-validator-management-rpc = { workspace = true }
-pallet-partner-chains-session = { workspace = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
-substrate-prometheus-endpoint = { workspace = true }
-thiserror = { workspace = true }
 time-source = { workspace = true }
 derive-new = { workspace = true }
 partner-chains-cli = { workspace = true }
@@ -77,7 +68,6 @@ sp-partner-chains-bridge = { workspace = true }
 jsonrpsee = { workspace = true }
 sc-rpc = { workspace = true }
 sp-api = { workspace = true }
-sc-rpc-api = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-block-builder = { workspace = true }
 sc-basic-authorship = { workspace = true }
@@ -85,9 +75,6 @@ substrate-frame-rpc-system = { workspace = true }
 pallet-block-producer-fees-rpc = { workspace = true }
 sp-block-producer-fees = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
-
-# These dependencies are used for runtime benchmarking
-frame-benchmarking = { workspace = true }
 
 # Local Dependencies
 partner-chains-demo-runtime = { workspace = true }

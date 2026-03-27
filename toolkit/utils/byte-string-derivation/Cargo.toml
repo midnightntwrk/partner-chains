@@ -20,6 +20,5 @@ quote = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true, features = ["std"] }
-hex = { workspace = true }
 serde_test = "*"
 serde = { workspace = true }

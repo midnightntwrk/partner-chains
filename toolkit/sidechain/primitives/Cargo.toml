@@ -19,7 +19,6 @@ sidechain-domain = { workspace = true }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
 sp-api = { workspace = true }
-sp-runtime = { workspace = true }
 serde = { workspace = true, optional = true }
 
 [features]
@@ -32,6 +31,5 @@ std = [
     "scale-info/std",
 	"sidechain-domain/std",
     "sp-api/std",
-    "sp-runtime/std",
 	"serde",
 ]

@@ -7,6 +7,9 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[package.metadata.cargo-shear]
+ignored = ["plutus"]
+
 [lints]
 workspace = true
 
@@ -25,7 +28,7 @@ sidechain-domain = { workspace = true, features = ["std"] }
 sc-cli = { workspace = true }
 sc-service = { workspace = true }
 sp-api = { workspace = true, features = ["std"] }
-sp-core = { workspace = true, features = ["std"] }
+#sp-core = { workspace = true, features = ["std"] }
 sp-blockchain = { workspace = true }
 sp-runtime = { workspace = true, features = ["std"] }
 sp-sidechain = { workspace = true, features = ["std"] }
