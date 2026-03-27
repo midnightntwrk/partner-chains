@@ -172,7 +172,7 @@ derive-new = { version = "0.7.0" }
 inquire = { version = "0.7.5" }
 parking_lot = { version = "0.12.4", default-features = false }
 envy = { version = "0.4.2" }
-log4rs = { version = "1.3.0" }
+log4rs = { version = "1.4.0", default-features = false, features = ["console_appender", "file_appender"] }
 bech32 = { version = "0.11.0", default-features = false }
 sqlx = { version = "0.8.6", default-features = false, features = [
 	"runtime-tokio-rustls",
