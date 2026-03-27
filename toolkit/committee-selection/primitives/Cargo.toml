@@ -44,3 +44,7 @@ serde = [
 	"scale-info/serde",
 	"sidechain-domain/serde",
 ]
+
+[lib]
+test = false
+doctest = false

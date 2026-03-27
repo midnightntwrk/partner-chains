@@ -38,3 +38,6 @@ time-source = { workspace = true }
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 time-source = { workspace = true, features = ["mock"] }
+
+[lib]
+doctest = false

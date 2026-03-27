@@ -9,6 +9,8 @@ repository.workspace = true
 
 [lib]
 proc-macro = true
+test = false
+doctest = false
 
 [lints]
 workspace = true

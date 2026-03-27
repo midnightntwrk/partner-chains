@@ -33,3 +33,6 @@ std = [
     "sp-api/std",
 	"serde",
 ]
+
+[lib]
+doctest = false

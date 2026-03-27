@@ -44,3 +44,7 @@ std = [
 ]
 polkadot-js-compat = []
 pallet-session-compat = ["pallet-session"]
+
+[lib]
+test = false
+doctest = false

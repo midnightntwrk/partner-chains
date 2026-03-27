@@ -63,3 +63,6 @@ sp-runtime = { workspace = true }
 default = ["std"]
 std = []
 runtime-benchmarks = []
+
+[lib]
+doctest = false

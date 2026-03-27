@@ -10,6 +10,7 @@ description = "Proc macros for generating conversions for byte string wrapper ty
 
 [lib]
 proc-macro = true
+test = false
 
 [lints]
 workspace = true

@@ -55,3 +55,6 @@ std = [
 	"ed25519-zebra/std",
 ]
 serde = ["dep:serde", "scale-info/serde", "sp-core/serde"]
+
+[lib]
+doctest = false

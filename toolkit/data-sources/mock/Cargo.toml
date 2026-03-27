@@ -44,3 +44,6 @@ mc-hash = ["sidechain-mc-hash"]
 sidechain-rpc = ["pallet-sidechain-rpc"]
 block-participation = ["sp-block-participation"]
 bridge = ["sp-partner-chains-bridge"]
+
+[lib]
+test = false

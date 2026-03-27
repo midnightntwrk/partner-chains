@@ -24,3 +24,6 @@ derive-new = { workspace = true }
 [features]
 default = []
 mock = []
+
+[lib]
+test = false

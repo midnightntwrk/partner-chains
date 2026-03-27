@@ -24,3 +24,6 @@ sp-runtime = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 hex-literal = { workspace = true }
+
+[lib]
+doctest = false

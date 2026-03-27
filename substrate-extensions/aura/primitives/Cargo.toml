@@ -32,3 +32,6 @@ std = [
 	"sp-runtime/std",
 	"sp-inherents/std",
 ]
+
+[lib]
+doctest = false

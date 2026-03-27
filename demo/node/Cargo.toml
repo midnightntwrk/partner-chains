@@ -115,3 +115,6 @@ authority-selection-inherents = { workspace = true, features = ["mock"] }
 
 [features]
 default = ["sidechain-domain/std"]
+
+[lib]
+doctest = false

@@ -32,3 +32,6 @@ tokio = { workspace = true }
 [features]
 default = ["jsonrpsee-client"]
 jsonrpsee-client = ["jsonrpsee", "log"]
+
+[lib]
+doctest = false

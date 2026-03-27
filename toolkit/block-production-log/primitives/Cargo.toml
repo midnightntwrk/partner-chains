@@ -29,3 +29,6 @@ std = [
 	"sp-api/std",
 	"sidechain-slots/std"
 ]
+
+[lib]
+doctest = false

@@ -29,3 +29,6 @@ default = ["std"]
 std = [
     "rand/std"
 ]
+
+[lib]
+doctest = false

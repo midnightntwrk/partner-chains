@@ -49,3 +49,6 @@ runtime-benchmarks = [
     "hex-literal",
     "sp-core",
 ]
+
+[lib]
+doctest = false

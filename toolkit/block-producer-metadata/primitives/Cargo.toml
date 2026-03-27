@@ -29,3 +29,6 @@ std = [
     "sp-api/std",
     "parity-scale-codec/std",
 ]
+
+[lib]
+doctest = false

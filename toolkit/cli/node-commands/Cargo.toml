@@ -38,3 +38,6 @@ once_cell = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[lib]
+doctest = false

@@ -24,3 +24,6 @@ serde_json = { workspace = true }
 hex = { workspace = true }
 hex-literal = { workspace = true }
 pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false

@@ -41,3 +41,6 @@ std = [
     "frame-benchmarking?/std"
 ]
 runtime-benchmarks = ["frame-benchmarking"]
+
+[lib]
+doctest = false

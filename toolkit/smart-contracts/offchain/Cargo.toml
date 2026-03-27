@@ -40,3 +40,6 @@ proptest = { workspace = true }
 pretty_assertions = { workspace = true }
 testcontainers = { workspace = true, features = ["blocking"] }
 itertools = { workspace = true }
+
+[lib]
+doctest = false

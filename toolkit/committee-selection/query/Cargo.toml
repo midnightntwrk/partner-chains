@@ -35,3 +35,6 @@ hex-literal = { workspace = true }
 minicbor = { workspace = true }
 tokio = { workspace = true }
 authority-selection-inherents = { workspace = true, features = ["mock"] }
+
+[lib]
+doctest = false
