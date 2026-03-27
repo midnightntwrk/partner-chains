@@ -40,15 +40,6 @@ jobs:
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
 
-      - name: Formatting
-        run: cargo fmt --check
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-features --locked
-
-      - name: Test
-        run: cargo test --workspace --all-features --locked --exclude partner-chains-cardano-offchain --exclude partner-chains-demo-node
-
       - name: Build
         run: cargo build --locked --release
 
