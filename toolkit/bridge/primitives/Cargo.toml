@@ -39,3 +39,6 @@ std = [
     "log/std",
     "sidechain-domain/std",
 ]
+
+[lib]
+test = false

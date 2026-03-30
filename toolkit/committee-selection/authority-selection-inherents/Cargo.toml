@@ -29,7 +29,6 @@ sp-api = { workspace = true }
 sp-core = { workspace = true }
 sp-inherents = { workspace = true }
 sp-runtime = { workspace = true }
-sp-std = { workspace = true }
 thiserror = { workspace = true, optional = true }
 serde = { workspace = true }
 sp-consensus-slots = { workspace = true }
@@ -38,9 +37,7 @@ sp-consensus-slots = { workspace = true }
 hex = { workspace = true }
 hex-literal = { workspace = true }
 num-bigint = { workspace = true }
-num-traits = { workspace = true }
 tokio = { workspace = true }
-sp-application-crypto = { workspace = true }
 
 [features]
 default = ["std"]
@@ -58,9 +55,10 @@ std = [
 	"sp-core/std",
 	"sp-inherents/std",
 	"sp-runtime/std",
-	"sp-std/std",
 	"thiserror",
 	"async-trait",
-	"selection/std",
 ]
 mock = []
+
+[lib]
+doctest = false

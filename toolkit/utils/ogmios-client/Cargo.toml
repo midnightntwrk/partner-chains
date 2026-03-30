@@ -23,7 +23,6 @@ thiserror = { workspace = true }
 time = { workspace = true, features = ["std", "serde", "parsing"] }
 sidechain-domain = { workspace = true, features = ["std"] }
 log = { workspace = true, optional = true }
-anyhow = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -33,3 +32,6 @@ tokio = { workspace = true }
 [features]
 default = ["jsonrpsee-client"]
 jsonrpsee-client = ["jsonrpsee", "log"]
+
+[lib]
+doctest = false

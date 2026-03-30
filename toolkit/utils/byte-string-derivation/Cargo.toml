@@ -10,6 +10,7 @@ description = "Proc macros for generating conversions for byte string wrapper ty
 
 [lib]
 proc-macro = true
+test = false
 
 [lints]
 workspace = true
@@ -20,6 +21,5 @@ quote = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true, features = ["std"] }
-hex = { workspace = true }
 serde_test = "*"
 serde = { workspace = true }

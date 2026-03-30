@@ -41,3 +41,6 @@ std = [
     "sidechain-domain/std",
     "scale-info/std"
 ]
+
+[lib]
+doctest = false

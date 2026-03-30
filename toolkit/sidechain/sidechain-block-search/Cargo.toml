@@ -13,21 +13,12 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true, features = ['std'] }
-scale-info = { workspace = true, features = ['std'] }
-serde = { workspace = true, features = ['std'] }
-
-sp-core = { workspace = true, features = ['std'] }
 sp-runtime = { workspace = true, features = ['std'] }
 sp-api = { workspace = true, features = ['std'] }
 sp-blockchain = { workspace = true }
 
 sp-sidechain = { workspace = true, features = ['std'] }
 sidechain-domain = { workspace = true, features = ['std'] }
-hex = { workspace = true, features = ['std'] }
 
 [dev-dependencies]
 proptest = { workspace = true }
-hex-literal = { workspace = true }
-sp-consensus-aura = { workspace = true, features = ['std'] }
-sp-consensus-slots = { workspace = true, features = ['std'] }

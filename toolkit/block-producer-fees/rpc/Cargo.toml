@@ -22,3 +22,6 @@ derive-new = { workspace = true }
 
 [features]
 default = []
+
+[lib]
+test = false
