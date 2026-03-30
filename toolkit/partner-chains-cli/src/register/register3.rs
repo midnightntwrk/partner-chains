@@ -118,10 +118,9 @@ fn show_registration_status(
 	stake_pool_public_key: StakePoolPublicKey,
 ) -> Result<(), anyhow::Error> {
 	let temp_dir = context.new_tmp_dir();
-	let temp_dir_path = temp_dir
-		.into_os_string()
-		.into_string()
-		.expect("PathBuf is a valid UTF-8 String");
+	let temp_dir_path = temp_dir.into_os_string().into_string().map_err(|_| {
+		anyhow::anyhow!("Unexpected error: could not convert temp dir name into OsString")
+	})?;
 	let node_executable = context.current_executable()?;
 	let command = format!(
 		"{} registration-status --mainchain-pub-key {} --mc-epoch-number {} --chain chain-spec.json --base-path {temp_dir_path}",

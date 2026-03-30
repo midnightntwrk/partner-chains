@@ -342,7 +342,7 @@ pub mod pallet {
 					None => None,
 				};
 				let key = Self::bound_key(&key)?;
-				changes.try_insert(key, new_value).expect("Number of changes is below maximum");
+				changes.try_insert(key, new_value).map_err(|_| TooManyChanges)?;
 			}
 			Ok(Some(Call::register_changes { changes }))
 		}

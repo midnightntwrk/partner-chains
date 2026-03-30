@@ -79,6 +79,7 @@ pub async fn run_insert<
 	Ok(tx_hash_opt)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn insert<
 	C: QueryLedgerState + Transactions + QueryNetwork + QueryUtxoByUtxoId,
 	A: AwaitTx,
@@ -210,6 +211,7 @@ pub async fn run_update<
 	Ok(tx_hash_opt)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn update<
 	C: QueryLedgerState + Transactions + QueryNetwork + QueryUtxoByUtxoId,
 	A: AwaitTx,
@@ -248,6 +250,7 @@ async fn update<
 	.await
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_key_value_tx(
 	validator: &PlutusScript,
 	policy: &PlutusScript,

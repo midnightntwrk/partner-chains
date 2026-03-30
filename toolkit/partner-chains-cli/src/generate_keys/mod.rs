@@ -108,8 +108,7 @@ pub(crate) fn generate_spo_keys<C: IOContext, T: PartnerChainRuntime>(
 		}
 
 		let public_keys_json =
-			serde_json::to_string_pretty(&PermissionedCandidateKeys { partner_chains_key, keys })
-				.expect("PermissionedCandidateKeys have only UTF-8 encodable ids");
+			serde_json::to_string_pretty(&PermissionedCandidateKeys { partner_chains_key, keys })?;
 		context.write_file(KEYS_FILE_PATH, &public_keys_json);
 
 		context.eprint(&format!(

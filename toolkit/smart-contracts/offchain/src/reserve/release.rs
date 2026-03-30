@@ -103,6 +103,7 @@ pub async fn release_reserve_funds<
 	Ok(McTxHash(tx_id))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn reserve_release_tx(
 	ctx: &TransactionContext,
 	reserve_data: &ReserveData,

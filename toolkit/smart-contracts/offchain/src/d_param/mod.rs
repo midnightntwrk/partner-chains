@@ -152,6 +152,7 @@ async fn insert_d_param<
 	.await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn update_d_param<
 	C: QueryLedgerState + Transactions + QueryNetwork + QueryUtxoByUtxoId,
 	A: AwaitTx,

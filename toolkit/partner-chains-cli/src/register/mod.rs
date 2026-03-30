@@ -54,7 +54,7 @@ impl CandidateKeyParam {
 			.bytes()
 			.collect::<Vec<u8>>()
 			.try_into()
-			.expect("Incorrect key type length, must be 4");
+			.map_err(|_| anyhow::anyhow!("Incorrect key type length, must be 4"))?;
 		Ok(Self::new(id, bytes))
 	}
 }

@@ -403,11 +403,13 @@ pub mod inherent_data {
 			slot_duration: SlotDuration,
 			mc_epoch_config: &MainchainEpochConfig,
 		) -> Result<McEpochNumber, InherentDataCreationError<BlockProducer>> {
+			#[allow(clippy::unwrap_in_result)]
 			let timestamp = Timestamp::from_unix_millis(
 				slot.timestamp(slot_duration)
 					.expect("Timestamp for past slots can not overflow")
 					.as_millis(),
 			);
+			#[allow(clippy::unwrap_in_result)]
 			let mc_epoch = mc_epoch_config
 				.timestamp_to_mainchain_epoch(timestamp)
 				.expect("Mainchain epoch for past slots exists");
