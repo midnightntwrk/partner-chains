@@ -59,7 +59,7 @@ impl PlutusScript {
 	pub fn unapply_data_uplc(&self) -> anyhow::Result<uplc::PlutusData> {
 		let mut buffer = Vec::new();
 		let program = Program::<DeBruijn>::from_cbor(&self.bytes, &mut buffer)
-			.map_err(|_| anyhow!("Could not ready script CBOR"))?;
+			.map_err(|_| anyhow!("Could not read script CBOR"))?;
 		match program.term {
 			uplc::ast::Term::Apply { function: _, argument } => {
 				let res: Result<uplc::PlutusData, String> = (*argument).clone().try_into();

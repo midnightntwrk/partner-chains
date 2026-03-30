@@ -263,6 +263,9 @@ pub mod inherent_data {
 		/// This error should never occur in normal operation of a node.
 		#[error("Offset of {1} can not be applied to main chain epoch {0}")]
 		McEpochBelowOffset(McEpochNumber, u32),
+		/// Error when computing main chain epoch number
+		#[error("Could not compute main chain epoch: {0}")]
+		McEpochCalculation(String),
 	}
 
 	/// Inherent data provider for block participation data.
@@ -403,16 +406,21 @@ pub mod inherent_data {
 			slot_duration: SlotDuration,
 			mc_epoch_config: &MainchainEpochConfig,
 		) -> Result<McEpochNumber, InherentDataCreationError<BlockProducer>> {
-			#[allow(clippy::unwrap_in_result)]
 			let timestamp = Timestamp::from_unix_millis(
 				slot.timestamp(slot_duration)
-					.expect("Timestamp for past slots can not overflow")
+					.ok_or_else(|| {
+						InherentDataCreationError::McEpochCalculation(format!(
+							"Timestamp for overflow for {slot:?} and {slot_duration:?}"
+						))
+					})?
 					.as_millis(),
 			);
-			#[allow(clippy::unwrap_in_result)]
-			let mc_epoch = mc_epoch_config
-				.timestamp_to_mainchain_epoch(timestamp)
-				.expect("Mainchain epoch for past slots exists");
+			let mc_epoch =
+				mc_epoch_config.timestamp_to_mainchain_epoch(timestamp).map_err(|e| {
+					InherentDataCreationError::McEpochCalculation(format!(
+						"Epoch derivation failed: {e:?}"
+					))
+				})?;
 
 			offset_data_epoch(&mc_epoch)
 				.map_err(|offset| InherentDataCreationError::McEpochBelowOffset(mc_epoch, offset))

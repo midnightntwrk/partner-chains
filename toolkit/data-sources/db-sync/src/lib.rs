@@ -178,6 +178,9 @@ pub enum DataSourceError {
 	InvalidData(String),
 }
 
+#[cfg(feature = "governed-map")]
+pub(crate) type Result<T> = std::result::Result<T, DataSourceError>;
+
 #[cfg(test)]
 mod tests {
 	use ctor::{ctor, dtor};

@@ -295,7 +295,7 @@ impl FromStr for MainchainAddress {
 
 impl Display for MainchainAddress {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-		let s = String::from_utf8(self.0.to_vec()).map_err(|_| core::fmt::Error)?;
+		let s = core::str::from_utf8(&self.0).map_err(|_| core::fmt::Error)?;
 		write!(f, "{}", s)
 	}
 }
