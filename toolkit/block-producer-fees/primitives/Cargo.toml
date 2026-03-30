@@ -20,3 +20,7 @@ sp-std = { workspace = true }
 [features]
 default = ["std"]
 std = ["parity-scale-codec/std", "sp-api/std", "sp-std/std"]
+
+[lib]
+test = false
+doctest = false

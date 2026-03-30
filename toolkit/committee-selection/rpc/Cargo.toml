@@ -15,3 +15,7 @@ derive-new = { workspace = true }
 jsonrpsee = { workspace = true }
 sidechain-domain = { workspace = true, features = ["std"] }
 sp-session-validator-management-query = { workspace = true }
+
+[lib]
+test = false
+doctest = false

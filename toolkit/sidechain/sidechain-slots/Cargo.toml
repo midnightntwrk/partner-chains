@@ -43,3 +43,6 @@ serde = [
     "scale-info/serde",
     "sp-core/serde",
 ]
+
+[lib]
+doctest = false

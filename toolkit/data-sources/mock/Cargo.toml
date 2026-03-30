@@ -15,10 +15,8 @@ workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-hex = { workspace = true }
 hex-literal = { workspace = true }
 log = { workspace = true }
-rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sidechain-domain = { workspace = true }
@@ -35,7 +33,6 @@ default = ["std", "block-source", "candidate-source", "governed-map"]
 std = [
 	"serde_json/std",
 	"sidechain-domain/std",
-	"rand/std",
 	"sp-block-participation?/std",
 	"sp-governed-map/std",
 	"authority-selection-inherents?/std"
@@ -47,3 +44,6 @@ mc-hash = ["sidechain-mc-hash"]
 sidechain-rpc = ["pallet-sidechain-rpc"]
 block-participation = ["sp-block-participation"]
 bridge = ["sp-partner-chains-bridge"]
+
+[lib]
+test = false

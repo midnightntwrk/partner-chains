@@ -12,9 +12,10 @@ repository.workspace = true
 [lints]
 workspace = true
 
-[dependencies]
-
 
 [features]
 default = []
 mock = []
+
+[lib]
+test = false

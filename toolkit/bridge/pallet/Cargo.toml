@@ -6,6 +6,9 @@ homepage.workspace = true
 repository.workspace = true
 version.workspace = true
 
+[package.metadata.cargo-shear]
+ignored = ["scale-info"]
+
 [dependencies]
 frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }

@@ -9,6 +9,9 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 
+[package.metadata.cargo-shear]
+ignored = ["plutus", "scale-info"]
+
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
@@ -26,15 +29,12 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
-thiserror = { workspace = true }
 tempfile = { workspace = true }
 secp256k1 = { workspace = true, features = ["std"] }
 colored = { workspace = true }
 ogmios-client = { workspace = true, features = ["jsonrpsee-client"] }
 tokio = { workspace = true }
-cardano-serialization-lib = { workspace = true }
 partner-chains-cardano-offchain = { workspace = true }
-log = { workspace = true }
 plutus = { workspace = true }
 plutus-datum-derive = { workspace = true }
 ed25519-zebra = { workspace = true }
@@ -64,3 +64,6 @@ sp-runtime = { workspace = true }
 default = ["std"]
 std = []
 runtime-benchmarks = []
+
+[lib]
+doctest = false

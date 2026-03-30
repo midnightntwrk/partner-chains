@@ -9,6 +9,9 @@ repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[package.metadata.cargo-shear]
+ignored = ["parity-scale-codec", "scale-info"]
+
 [lints]
 workspace = true
 

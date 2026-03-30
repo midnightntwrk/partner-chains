@@ -33,6 +33,8 @@ plutus = { workspace = true }
 sp-std = { workspace = true }
 hex-literal = { workspace = true }
 minicbor = { workspace = true }
-plutus-datum-derive = { workspace = true }
 tokio = { workspace = true }
 authority-selection-inherents = { workspace = true, features = ["mock"] }
+
+[lib]
+doctest = false
