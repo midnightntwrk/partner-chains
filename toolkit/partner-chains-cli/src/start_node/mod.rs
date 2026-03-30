@@ -6,6 +6,7 @@ use crate::generate_keys::network_key_path;
 use crate::io::IOContext;
 use crate::keystore::*;
 use crate::{config::config_fields, *};
+use anyhow::anyhow;
 use serde::Deserialize;
 use std::marker::PhantomData;
 
@@ -198,9 +199,9 @@ pub fn start_node<C: IOContext, T: PartnerChainRuntime>(
 	let ws_port = NODE_P2P_PORT.save_if_empty(
 		NODE_P2P_PORT
 			.default
-			.expect("Default NODE_WS_PORT should always be set")
+			.ok_or_else(|| anyhow!("Default NODE_WS_PORT should always be set"))?
 			.parse()
-			.expect("Default NODE_WS_PORT should be valid u16"),
+			.map_err(|_| anyhow!("Default NODE_WS_PORT should be valid u16"))?,
 		context,
 	);
 	let keystore_path = keystore_path(&substrate_node_base_path);

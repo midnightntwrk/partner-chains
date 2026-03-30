@@ -170,6 +170,7 @@ where
 	.await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn update_permissioned_candidates<C, A>(
 	validator: &PlutusScript,
 	policy: &PlutusScript,

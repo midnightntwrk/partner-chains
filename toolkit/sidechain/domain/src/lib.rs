@@ -295,8 +295,7 @@ impl FromStr for MainchainAddress {
 
 impl Display for MainchainAddress {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-		let s = String::from_utf8(self.0.to_vec())
-			.expect("MainchainAddressString is always properly encoded UTF-8");
+		let s = String::from_utf8(self.0.to_vec()).map_err(|_| core::fmt::Error)?;
 		write!(f, "{}", s)
 	}
 }
@@ -307,7 +306,8 @@ impl serde::Serialize for MainchainAddress {
 	where
 		S: serde::Serializer,
 	{
-		let s = String::from_utf8(self.0.to_vec()).expect("MainchainAddress is always valid UTF-8");
+		let s = String::from_utf8(self.0.to_vec())
+			.unwrap_or_else(|_| panic!("MainchainAddressString is always properly encoded UTF-8"));
 		serializer.serialize_str(&s)
 	}
 }

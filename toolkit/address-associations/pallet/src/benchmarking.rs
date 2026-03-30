@@ -24,10 +24,11 @@ mod benchmarks {
 			"2bebcb7fbc74a6e0fd6e00a311698b047b7b659f0e047ff5349dbd984aefc52c"
 		));
 		// Alice (hex: d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d)
+		#[allow(clippy::unwrap_in_result)]
 		let pc_address = T::PartnerChainAddress::from_ss58check(
 			"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
 		)
-		.unwrap();
+		.expect("Address literal is valid");
 		let signature = StakeKeySignature(hex!(
 			"36aabd5267699b01c01fb6892f9888ab82a0b853a21dcd863b8241c3049d85163ddf350cbbc8ba724abe7b22d5ae03a7b1429f4cc37fb11afcce041fac1cdd05"
 		));

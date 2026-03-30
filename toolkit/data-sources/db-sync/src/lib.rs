@@ -178,9 +178,6 @@ pub enum DataSourceError {
 	InvalidData(String),
 }
 
-/// Result type used by Db-Sync data sources
-pub(crate) type Result<T> = std::result::Result<T, DataSourceError>;
-
 #[cfg(test)]
 mod tests {
 	use ctor::{ctor, dtor};
