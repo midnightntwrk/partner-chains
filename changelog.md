@@ -7,6 +7,7 @@ This changelog is based on [Keep A Changelog](https://keepachangelog.com/en/1.1.
 ## Changed
 
 * Updated polkadot-sdk dependency to polkadot-stable2512-3.
+* Updated polkadot-sdk dependency to polkadot-stable2503.
 
 ## Removed
 
