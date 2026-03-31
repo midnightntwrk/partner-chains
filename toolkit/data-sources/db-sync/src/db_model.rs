@@ -165,11 +165,13 @@ pub(crate) struct TokenTxOutput {
 	pub datum: Option<DbDatum>,
 }
 
+#[cfg(feature = "governed-map")]
 #[derive(Debug, Clone, sqlx::FromRow, PartialEq)]
 pub(crate) struct DatumOutput {
 	pub datum: DbDatum,
 }
 
+#[cfg(feature = "governed-map")]
 #[derive(Debug, Clone, PartialEq, sqlx::Type)]
 #[repr(i32)]
 /// Describes the type of a single change to the governed map
@@ -180,6 +182,7 @@ pub(crate) enum GovernedMapAction {
 	Create,
 }
 
+#[cfg(feature = "governed-map")]
 #[derive(Debug, Clone, sqlx::FromRow, PartialEq)]
 pub(crate) struct DatumChangeOutput {
 	pub datum: DbDatum,
@@ -220,6 +223,7 @@ impl<'r> Decode<'r, Postgres> for NativeTokenAmount {
 	}
 }
 
+#[cfg(feature = "block-participation")]
 #[derive(Debug, Clone, sqlx::FromRow, PartialEq)]
 pub(crate) struct StakePoolDelegationOutputRow {
 	pub epoch_stake_amount: StakeDelegation,
@@ -228,6 +232,7 @@ pub(crate) struct StakePoolDelegationOutputRow {
 	pub stake_address_script_hash: Option<[u8; 28]>,
 }
 
+#[cfg(feature = "block-participation")]
 pub(crate) async fn get_stake_pool_delegations_for_pools(
 	pool: &Pool<Postgres>,
 	epoch: EpochNumber,

@@ -318,7 +318,7 @@ pub(crate) struct SidechainParams {
 
 impl Display for SidechainParams {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		let json_string = serde_json::to_string_pretty(self).unwrap();
+		let json_string = serde_json::to_string_pretty(self).unwrap_or("<formatting error>".into());
 		write!(f, "{}", &json_string)
 	}
 }

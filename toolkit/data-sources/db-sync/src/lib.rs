@@ -178,7 +178,7 @@ pub enum DataSourceError {
 	InvalidData(String),
 }
 
-/// Result type used by Db-Sync data sources
+#[cfg(feature = "governed-map")]
 pub(crate) type Result<T> = std::result::Result<T, DataSourceError>;
 
 #[cfg(test)]

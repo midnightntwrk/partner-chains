@@ -152,6 +152,7 @@ pub async fn deposit_with_ics_spend<
 	Ok(tx_hash)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn submit_tx<
 	C: QueryLedgerState + QueryNetwork + Transactions + QueryUtxoByUtxoId,
 	A: AwaitTx,
@@ -200,16 +201,15 @@ fn deposit_tx(
 		.with_plutus_data(&to_user_transfer_datum(pc_address))
 		.next()?;
 	let mut ma = ics_utxo
-		.to_csl()
-		.unwrap()
+		.to_csl()?
 		.output()
 		.amount()
 		.multiasset()
 		.expect("ics_utxo has at least 'auth token'");
 	let policy_id = ScriptHash::from(token_amount.token.policy_id.0);
 	let mut assets = ma.get(&policy_id).unwrap_or_default();
-	let asset_name = AssetName::new(token_amount.token.asset_name.0.to_vec())
-		.expect("asset name that comes from ogmios is valid");
+	let asset_name = AssetName::new(token_amount.token.asset_name.0.to_vec())?;
+
 	let amount = assets.get(&asset_name).unwrap_or_default();
 	assets.insert(&asset_name, &amount.checked_add(&BigNum::from(token_amount.amount))?);
 	let _ = ma.insert(&policy_id, &assets);

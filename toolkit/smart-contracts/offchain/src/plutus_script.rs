@@ -58,7 +58,8 @@ impl PlutusScript {
 	/// `script' = script data`, then [Self::unapply_data_uplc] called on `script'` will return `data`.
 	pub fn unapply_data_uplc(&self) -> anyhow::Result<uplc::PlutusData> {
 		let mut buffer = Vec::new();
-		let program = Program::<DeBruijn>::from_cbor(&self.bytes, &mut buffer).unwrap();
+		let program = Program::<DeBruijn>::from_cbor(&self.bytes, &mut buffer)
+			.map_err(|_| anyhow!("Could not read script CBOR"))?;
 		match program.term {
 			uplc::ast::Term::Apply { function: _, argument } => {
 				let res: Result<uplc::PlutusData, String> = (*argument).clone().try_into();
@@ -72,7 +73,9 @@ impl PlutusScript {
 	/// For more details see [Self::unapply_data_uplc].
 	pub fn unapply_data_csl(&self) -> Result<PlutusData, anyhow::Error> {
 		let uplc_pd = self.unapply_data_uplc()?;
+		#[allow(clippy::unwrap_in_result)]
 		let cbor_bytes = minicbor::to_vec(uplc_pd).expect("to_vec has Infallible error type");
+		#[allow(clippy::unwrap_in_result)]
 		Ok(PlutusData::from_bytes(cbor_bytes).expect("UPLC encoded PlutusData is valid"))
 	}
 

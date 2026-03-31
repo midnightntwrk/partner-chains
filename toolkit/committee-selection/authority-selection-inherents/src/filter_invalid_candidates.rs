@@ -268,8 +268,9 @@ pub fn validate_registration_data<TAccountKeys: MaybeFromCandidateKeys>(
 		registration_utxo: registration_data.registration_utxo,
 	};
 
-	let signed_message_encoded = minicbor::to_vec(signed_message.to_datum())
-		.expect("`RegisterValidatorSignedMessage` should always be encodable");
+	#[allow(clippy::unwrap_in_result)]
+	let signed_message_encoded =
+		minicbor::to_vec(signed_message.to_datum()).expect("minicbor::to_vec is Infallible");
 
 	verify_stake_pool_signature(stake_pool_pub_key, registration_data, &signed_message_encoded)?;
 	verify_sidechain_signature(

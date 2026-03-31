@@ -35,8 +35,8 @@ pub(crate) fn get_payment_verification_key_bytes_from_file(
 		let key_bytes = key_file
 			.raw_key_bytes::<64>()
 			.map_err(|e| anyhow!("Failed to parse key bytes in {path}. {e}"))?;
-		let prefix: [u8; 32] =
-			key_bytes[0..32].try_into().expect("[0..32] of [u8; 64] has to fit [u8; 32]");
+		let mut prefix = [0u8; 32];
+		prefix.copy_from_slice(&key_bytes[..32]);
 		Ok(prefix)
 	} else if key_type == "PaymentVerificationKeyShelley_ed25519" {
 		let key_bytes = key_file

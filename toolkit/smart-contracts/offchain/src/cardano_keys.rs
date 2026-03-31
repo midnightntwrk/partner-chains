@@ -12,7 +12,7 @@ impl CardanoPaymentSigningKey {
 	/// Constructs [CardanoPaymentSigningKey] from 128 byte extended payment signing key.
 	/// The 128 bytes of the key are: 64 byte prefix, 32 byte verification key, 32 byte chain code
 	pub fn from_extended_128_bytes(bytes: [u8; 128]) -> anyhow::Result<Self> {
-		let prefix: [u8; 64] = bytes[0..64].try_into().unwrap();
+		let (prefix, _reminder) = bytes.split_at(64);
 		Ok(Self(
 			PrivateKey::from_extended_bytes(&prefix)
 				.map_err(|e| anyhow!("Couldn't parse 128 bytes into a BIP32 Private Key: {e}"))?,
