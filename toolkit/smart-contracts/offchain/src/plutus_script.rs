@@ -73,10 +73,9 @@ impl PlutusScript {
 	/// For more details see [Self::unapply_data_uplc].
 	pub fn unapply_data_csl(&self) -> Result<PlutusData, anyhow::Error> {
 		let uplc_pd = self.unapply_data_uplc()?;
-		#[allow(clippy::unwrap_in_result)]
-		let cbor_bytes = minicbor::to_vec(uplc_pd).expect("to_vec has Infallible error type");
-		#[allow(clippy::unwrap_in_result)]
-		Ok(PlutusData::from_bytes(cbor_bytes).expect("UPLC encoded PlutusData is valid"))
+		let cbor_bytes =
+			uplc::plutus_data_to_bytes(&uplc_pd).map_err(|e| anyhow!(e.to_string()))?;
+		PlutusData::from_bytes(cbor_bytes).map_err(|e| anyhow!(e.to_string()))
 	}
 
 	/// Builds an CSL [Address] for plutus script from the data obtained from smart contracts.
@@ -94,7 +93,7 @@ impl PlutusScript {
 		)
 		.map_err(|e| anyhow!(e))?;
 		let bytes = se.finalize();
-		minicbor::decode(&bytes).map_err(|e| anyhow!(e.to_string()))
+		uplc::plutus_data(&bytes).map_err(|e| anyhow!(e.to_string()))
 	}
 
 	/// Returns bech32 address of the given PlutusV2 script

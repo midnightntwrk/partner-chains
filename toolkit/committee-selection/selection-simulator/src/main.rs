@@ -49,7 +49,6 @@
 use clap::*;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
-use rand_chacha::rand_core::SeedableRng;
 use serde::*;
 use std::fmt::Display;
 
@@ -147,7 +146,7 @@ fn main() {
 
 	let cmd = TopCommand::parse();
 
-	let rng = ChaCha20Rng::from_os_rng();
+	let rng = rand::make_rng::<ChaCha20Rng>();
 
 	match cmd {
 		TopCommand::Simulate(cmd) => cmd.execute(rng),

@@ -2,7 +2,7 @@ extern crate alloc;
 
 use crate::*;
 use alloc::vec::Vec;
-use rand::Rng;
+use rand::RngExt;
 use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 
 /// Simple random weighted selection

@@ -15,28 +15,29 @@ const PERMISSIONED_CANDIDATES_POLICY: [u8; 28] =
 	hex!("500000000000000000000000000000000000434845434b504f494e19");
 
 macro_rules! with_migration_versions {
-	($(async fn $name:ident($pool:ident: PgPool, $tx_in_cfg:ident: TxInConfiguration) $body:block )*) => {
+	($(async fn $name:ident as ($name_v1:ident, $name_v2:ident) ($pool:ident: PgPool, $tx_in_cfg:ident: TxInConfiguration) $body:block )*) => {
 
 		$(
-            paste::paste!(
-				async fn $name($pool: PgPool, $tx_in_cfg: TxInConfiguration) $body
+			async fn $name($pool: PgPool, $tx_in_cfg: TxInConfiguration) $body
 
-				#[sqlx::test(migrations = "./testdata/migrations-tx-in-enabled")]
-				async fn [<$name _v1>]($pool: PgPool) {
-					$name($pool, TxInConfiguration::Enabled).await
-				}
+			#[sqlx::test(migrations = "./testdata/migrations-tx-in-enabled")]
+			async fn $name_v1($pool: PgPool) {
+				$name($pool, TxInConfiguration::Enabled).await
+			}
 
-				#[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
-				async fn [<$name _v2>]($pool: PgPool) {
-					$name($pool, TxInConfiguration::Consumed).await
-				}
-			);
+			#[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
+			async fn $name_v2($pool: PgPool) {
+				$name($pool, TxInConfiguration::Consumed).await
+			}
 		)*
     };
 }
 
 with_migration_versions! {
-	async fn test_get_candidates_for_epoch(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+	async fn test_get_candidates_for_epoch as (
+		test_get_candidates_for_epoch_v1,
+		test_get_candidates_for_epoch_v2
+	) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 		let source = make_source(pool, tx_in_cfg);
 		let result = source.get_candidates(McEpochNumber(191), candidates_address()).await.unwrap();
 		let mut candidates = result;
@@ -44,7 +45,10 @@ with_migration_versions! {
 		assert_eq!(candidates, vec![leader_candidate_spo_a(), leader_candidate_spo_b()])
 	}
 
-	async fn test_get_candidates_after_some_deregistrations(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+	async fn test_get_candidates_after_some_deregistrations as (
+		test_get_candidates_after_some_deregistrations_v1,
+		test_get_candidates_after_some_deregistrations_v2
+	) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 		let source = make_source(pool, tx_in_cfg);
 		let result = source.get_candidates(McEpochNumber(195), candidates_address()).await.unwrap();
 		let mut candidates = result;
@@ -52,7 +56,7 @@ with_migration_versions! {
 		assert_eq!(candidates, vec![leader_candidate_spo_c(), leader_candidate_spo_b()])
 	}
 
-	async fn test_get_epoch_nonce(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+	async fn test_get_epoch_nonce as (test_get_epoch_nonce_v1, test_get_epoch_nonce_v2) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 		let source = make_source(pool, tx_in_cfg);
 		let epoch_189_nonce = EpochNonce(
 			hex!("ABEED7FB0067F14D6F6436C7F7DEDB27CE3CEB4D2D18FF249D43B22D86FAE3F1").to_vec(),
@@ -61,7 +65,10 @@ with_migration_versions! {
 		assert_eq!(result, Some(epoch_189_nonce));
 	}
 
-	async fn test_get_ariadne_parameters_returns_err_if_there_were_no_set_transactions(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+	async fn test_get_ariadne_parameters_returns_err_if_there_were_no_set_transactions as (
+		test_get_ariadne_parameters_returns_err_if_there_were_no_set_transactions_v1,
+		test_get_ariadne_parameters_returns_err_if_there_were_no_set_transactions_v2
+	) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 		let source = make_source(pool, tx_in_cfg);
 		// The first permissioned candidates tx was submitted at epoch 190
 		let result = source
@@ -74,7 +81,10 @@ with_migration_versions! {
 		assert_err!(result);
 	}
 
-	async fn test_get_ariadne_parameters_returns_the_latest_value_for_the_future_epochs(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+	async fn test_get_ariadne_parameters_returns_the_latest_value_for_the_future_epochs as (
+		test_get_ariadne_parameters_returns_the_latest_value_for_the_future_epochs_v1,
+		test_get_ariadne_parameters_returns_the_latest_value_for_the_future_epochs_v2
+	) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 		let source = make_source(pool, tx_in_cfg);
 		// The last tx was submitted at epoch 192
 		let result = source
@@ -91,7 +101,10 @@ with_migration_versions! {
 		)
 	}
 
-	async fn test_get_ariadne_parameters_returns_the_latest_candidates_if_there_were_multiple_in_the_same_epoch(
+	async fn test_get_ariadne_parameters_returns_the_latest_candidates_if_there_were_multiple_in_the_same_epoch as (
+		test_get_ariadne_parameters_returns_the_latest_candidates_if_there_were_multiple_in_the_same_epoch_v1,
+		test_get_ariadne_parameters_returns_the_latest_candidates_if_there_were_multiple_in_the_same_epoch_v2
+	) (
 		pool: PgPool,
 		tx_in_cfg: TxInConfiguration
 	) {
@@ -113,7 +126,10 @@ with_migration_versions! {
 		)
 	}
 
-	async fn test_get_ariadne_parameters_returns_none_when_permissioned_list_not_set(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+	async fn test_get_ariadne_parameters_returns_none_when_permissioned_list_not_set as (
+		test_get_ariadne_parameters_returns_none_when_permissioned_list_not_set_v1,
+		test_get_ariadne_parameters_returns_none_when_permissioned_list_not_set_v2
+	) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 		let source = make_source(pool, tx_in_cfg);
 		let result = source
 			.get_ariadne_parameters(
@@ -130,7 +146,10 @@ with_migration_versions! {
 		assert_eq!(result.permissioned_candidates, None)
 	}
 
-	async fn test_get_ariadne_parameters_returns_the_latest_params_for_the_future_epochs(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+	async fn test_get_ariadne_parameters_returns_the_latest_params_for_the_future_epochs as (
+		test_get_ariadne_parameters_returns_the_latest_params_for_the_future_epochs_v1,
+		test_get_ariadne_parameters_returns_the_latest_params_for_the_future_epochs_v2
+	) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 		let source = make_source(pool, tx_in_cfg);
 		// The last tx was submitted at epoch 192
 		let result = source
@@ -144,7 +163,10 @@ with_migration_versions! {
 		assert_eq!(result.permissioned_candidates, Some(latest_permissioned_candidates()))
 	}
 
-	async fn test_make_source_creates_index(pool: PgPool, _tx_in_cfg: TxInConfiguration) {
+	async fn test_make_source_creates_index as (
+		test_make_source_creates_index_v1,
+		test_make_source_creates_index_v2
+	) (pool: PgPool, _tx_in_cfg: TxInConfiguration) {
 		assert!(!index_exists_unsafe(&pool, "idx_ma_tx_out_ident").await);
 		assert!(!index_exists_unsafe(&pool, "idx_tx_out_address").await);
 		CandidatesDataSourceImpl::new(pool.clone(), None).await.unwrap();
@@ -159,7 +181,7 @@ mod candidate_caching {
 	use crate::candidates::tests::*;
 
 	with_migration_versions! {
-		async fn candidates_caching_test(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+		async fn candidates_caching_test as (candidates_caching_test_v1, candidates_caching_test_v2) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 			let security_parameter = 2;
 			let cache_size = 100;
 			let service = CandidateDataSourceCached::new(
@@ -189,7 +211,10 @@ mod candidate_caching {
 			assert_ne!(epoch_193_candidates, epoch_193_candidates_after_txs_removal);
 		}
 
-		async fn candidates_caching_key_test(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+		async fn candidates_caching_key_test as (
+			candidates_caching_key_test_v1,
+			candidates_caching_key_test_v2
+		) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 			let service = CandidateDataSourceCached::new(
 				make_source(pool.clone(), tx_in_cfg),
 				10,
@@ -207,7 +232,10 @@ mod candidate_caching {
 			assert!(epoch_192_candidates_from_different_address.is_empty());
 		}
 
-		async fn ariadne_parameters_caching_test(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+		async fn ariadne_parameters_caching_test as (
+			ariadne_parameters_caching_test_v1,
+			ariadne_parameters_caching_test_v2
+		) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 			let security_parameter = 2;
 			let cache_size = 100;
 			let service = CandidateDataSourceCached::new(
@@ -263,7 +291,10 @@ mod candidate_caching {
 			assert!(epoch_193_ariadne_parameters_after_txs_removal.is_err());
 		}
 
-		async fn ariadne_parameters_caching_key_test(pool: PgPool, tx_in_cfg: TxInConfiguration) {
+		async fn ariadne_parameters_caching_key_test as (
+			ariadne_parameters_caching_key_test_v1,
+			ariadne_parameters_caching_key_test_v2
+		) (pool: PgPool, tx_in_cfg: TxInConfiguration) {
 			let service = CandidateDataSourceCached::new(
 				make_source(pool.clone(), tx_in_cfg),
 				10,
