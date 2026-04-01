@@ -17,6 +17,8 @@ use sqlx::PgPool;
 use std::{
 	error::Error,
 	sync::{Arc, Mutex},
+	time::Duration,
+	u32,
 };
 
 #[cfg(test)]
@@ -28,8 +30,6 @@ enum StableBlockByHashError {
 	Database(String),
 	#[error("Block with hash {0} was not found.")]
 	BlockNotFound(McBlockHash),
-	#[error("Latest block info was unavailable while checking block hash {0}.")]
-	LatestBlockUnavailable(McBlockHash),
 	#[error(
 		"Block with hash {hash} is not stable yet: block {block_no} requires latest block >= {required_latest_block_no}, but latest block is {latest_block_no}."
 	)]
@@ -71,6 +71,10 @@ pub struct BlockDataSourceImpl {
 	min_slot_boundary_as_seconds: TimeDelta,
 	/// a characteristic of Ouroboros Praos and is equal to `3 * security parameter / active slot coefficient`
 	max_slot_boundary_as_seconds: TimeDelta,
+	/// Cardano active slots coefficient
+	active_slots_coefficient: f64,
+	/// Cardano slot lenght in milliseconds
+	slot_duration_millis: u64,
 	/// Cardano main chain epoch configuration
 	mainchain_epoch_config: MainchainEpochConfig,
 	/// Additional offset applied when selecting the latest stable Cardano block
@@ -91,9 +95,14 @@ impl BlockDataSourceImpl {
 	pub async fn get_latest_block_info(
 		&self,
 	) -> Result<MainchainBlock, Box<dyn std::error::Error + Send + Sync>> {
+		log::trace!("get_latest_block_info");
 		db_model::get_latest_block_info(&self.pool)
 			.await?
-			.map(From::from)
+			.map(|block| {
+				self.observe_latest_cardano_block_metrics(&block);
+				self.observe_expected_cardano_tip_height(&block);
+				From::from(block)
+			})
 			.ok_or(ExpectedDataNotFound("No latest block on chain.".to_string()).into())
 	}
 
@@ -236,6 +245,8 @@ impl BlockDataSourceImpl {
 			cardano_security_parameter,
 			TimeDelta::milliseconds(min_slot_boundary),
 			TimeDelta::milliseconds(max_slot_boundary),
+			cardano_active_slots_coeff,
+			mc_epoch_config.slot_duration_millis.millis(),
 			mc_epoch_config.clone(),
 			block_stability_margin,
 			cache_size,
@@ -288,6 +299,19 @@ impl BlockDataSourceImpl {
 		}
 	}
 
+	fn observe_expected_cardano_tip_height(&self, latest_block: &Block) {
+		if let Some(metrics) = &self.metrics_opt {
+			let time_delta = std::time::SystemTime::now()
+				.duration_since(latest_block.time.and_utc().into())
+				.unwrap_or(Duration::ZERO);
+			// If time_delta is over 2^64 millis, there are bigger problems then metrics
+			let slots_delta = (time_delta.as_millis() as u64) / self.slot_duration_millis;
+			let lag: u32 = ((slots_delta as f64) * self.active_slots_coefficient) as u32;
+			let expected_tip = latest_block.block_no.0 + lag;
+			metrics.expected_cardano_tip_height().set(expected_tip.into())
+		}
+	}
+
 	async fn get_stable_block_by_hash(
 		&self,
 		hash: McBlockHash,
@@ -333,14 +357,10 @@ impl BlockDataSourceImpl {
 		hash: McBlockHash,
 		reference_timestamp: NaiveDateTime,
 	) -> Result<Block, StableBlockByHashError> {
-		let latest_block = db_model::get_latest_block_info(&self.pool)
+		let latest_block = self
+			.get_latest_block_info()
 			.await
 			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
-		let Some(latest_block) = latest_block else {
-			return Err(StableBlockByHashError::LatestBlockUnavailable(hash));
-		};
-		self.observe_latest_cardano_block_metrics(&latest_block);
-
 		let block = db_model::get_block_by_hash(&self.pool, hash.clone())
 			.await
 			.map_err(|err| StableBlockByHashError::Database(format!("{err:?}")))?;
@@ -350,7 +370,7 @@ impl BlockDataSourceImpl {
 		self.observe_referenced_cardano_block_metrics(&block);
 
 		let required_latest_block_no = block.block_no.saturating_add(self.security_parameter);
-		let is_stable = required_latest_block_no <= latest_block.block_no;
+		let is_stable = required_latest_block_no <= latest_block.number.into();
 		let min_allowed_time = self.min_block_allowed_time(reference_timestamp);
 		let max_allowed_time = self.max_allowed_block_time(reference_timestamp);
 		let is_time_valid = self.is_block_time_valid(&block, reference_timestamp);
@@ -360,7 +380,7 @@ impl BlockDataSourceImpl {
 				hash,
 				block_no: block.block_no.0,
 				required_latest_block_no: required_latest_block_no.0,
-				latest_block_no: latest_block.block_no.0,
+				latest_block_no: latest_block.number.0,
 			});
 		}
 		if !is_time_valid {
