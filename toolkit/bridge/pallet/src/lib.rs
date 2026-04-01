@@ -192,6 +192,7 @@ pub mod benchmarking;
 /// Weight types and default weight values
 pub mod weights;
 
+use frame_support::pallet_prelude::*;
 pub use pallet::*;
 use sp_partner_chains_bridge::BridgeTransferV1;
 
@@ -215,8 +216,10 @@ impl<Recipient> TransferHandler<Recipient> for () {
 pub mod pallet {
 	use super::*;
 	use crate::weights::WeightInfo;
-	use frame_support::pallet_prelude::*;
-	use frame_system::{ensure_none, pallet_prelude::OriginFor};
+	use frame_system::{
+		ensure_none,
+		pallet_prelude::{BlockNumberFor, OriginFor},
+	};
 	use parity_scale_codec::MaxEncodedLen;
 	use sidechain_domain::McTxHash;
 	use sp_partner_chains_bridge::{
@@ -256,7 +259,12 @@ pub mod pallet {
 
 	/// Error type used by the pallet's extrinsics
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		/// Only one inherent call per block is allowed
+		InherentAlreadyExecuted,
+		/// Too many transactions to handle
+		TooManyUtxos,
+	}
 
 	#[pallet::storage]
 	pub type MainChainScriptsConfiguration<T: Config> =
@@ -264,6 +272,9 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type DataCheckpoint<T: Config> = StorageValue<_, BridgeDataCheckpoint, OptionQuery>;
+
+	#[pallet::storage]
+	pub type InherentExecutedThisBlock<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	/// Genesis configuration of the pallet
 	#[pallet::genesis_config]
@@ -290,6 +301,18 @@ pub mod pallet {
 		}
 	}
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			// Pre-account for on_finalize weight (storage write to reset inherent flag)
+			T::DbWeight::get().writes(1)
+		}
+
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			InherentExecutedThisBlock::<T>::kill();
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Inherent extrinsic that handles all incoming transfers in the current block
@@ -301,6 +324,8 @@ pub mod pallet {
 			data_checkpoint: BridgeDataCheckpoint,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+			ensure!(!InherentExecutedThisBlock::<T>::get(), Error::<T>::InherentAlreadyExecuted);
+			InherentExecutedThisBlock::<T>::put(true);
 			for transfer in transfers {
 				T::TransferHandler::handle_incoming_transfer(transfer);
 			}
