@@ -289,8 +289,7 @@ impl frame_system::Config for Runtime {
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 	type RuntimeTask = RuntimeTask;
-	type SingleBlockMigrations =
-		(pallet_session_validator_management::migrations::v1::LegacyToV1Migration<Runtime>,);
+	type SingleBlockMigrations = ();
 	type MultiBlockMigrator = ();
 	type PreInherents = ();
 	type PostInherents = ();
@@ -750,6 +749,10 @@ pub type UncheckedExtrinsic =
 	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
+pub type Migrations = (
+	pallet_session_validator_management::migrations::v1::LegacyToV1Migration<Runtime>,
+	// More migrations can be added here
+);
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,
@@ -757,6 +760,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	Migrations,
 >;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -798,7 +802,7 @@ impl_runtime_apis! {
 			VERSION
 		}
 
-		fn execute_block(block: <Block as BlockT>::LazyBlock) {
+		fn execute_block(block: Block) {
 			Executive::execute_block(block);
 		}
 
@@ -835,7 +839,7 @@ impl_runtime_apis! {
 		}
 
 		fn check_inherents(
-			block: <Block as BlockT>::LazyBlock,
+			block: Block,
 			data: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			data.check_extrinsics(&block)
@@ -1017,7 +1021,7 @@ impl_runtime_apis! {
 		}
 
 		fn execute_block(
-			block: <Block as BlockT>::LazyBlock,
+			block: Block,
 			state_root_check: bool,
 			signature_check: bool,
 			select: frame_try_runtime::TryStateSelect
