@@ -54,7 +54,7 @@ pub enum RegisterValidatorDatum {
 		/// Used by offchain code to find the registration UTXO when re-registering or de-registering.
 		own_pkh: MainchainKeyHash,
 		/// Registering SPO's Aura public key
-		aura_pub_key: AuraPublicKey,
+		safrole_pub_key: SafrolePublicKey,
 		/// Registering SPO's GRANDPA public key
 		grandpa_pub_key: GrandpaPublicKey,
 	},
@@ -111,14 +111,14 @@ impl VersionedDatumWithLegacy for RegisterValidatorDatum {
 pub fn candidate_registration_to_plutus_data(
 	candidate_registration: &CandidateRegistration,
 ) -> PlutusData {
-	let datum = if candidate_registration.keys.has_only_aura_and_grandpa_keys() {
+	let datum = if candidate_registration.keys.has_only_safrole_and_grandpa_keys() {
 		RegisterValidatorDatum::V0 {
 			stake_ownership: candidate_registration.stake_ownership.clone(),
 			sidechain_pub_key: candidate_registration.partner_chain_pub_key.clone(),
 			sidechain_signature: candidate_registration.partner_chain_signature.clone(),
 			registration_utxo: candidate_registration.registration_utxo,
 			own_pkh: candidate_registration.own_pkh,
-			aura_pub_key: AuraPublicKey(candidate_registration.keys.find_or_empty(AURA)),
+			safrole_pub_key: SafrolePublicKey(candidate_registration.keys.find_or_empty(AURA)),
 			grandpa_pub_key: GrandpaPublicKey(candidate_registration.keys.find_or_empty(GRANDPA)),
 		}
 	} else {
@@ -143,7 +143,7 @@ impl From<RegisterValidatorDatum> for CandidateRegistration {
 				sidechain_signature,
 				registration_utxo,
 				own_pkh,
-				aura_pub_key,
+				safrole_pub_key,
 				grandpa_pub_key,
 			} => CandidateRegistration {
 				stake_ownership,
@@ -151,7 +151,7 @@ impl From<RegisterValidatorDatum> for CandidateRegistration {
 				partner_chain_signature: sidechain_signature,
 				registration_utxo,
 				own_pkh,
-				keys: CandidateKeys(vec![aura_pub_key.into(), grandpa_pub_key.into()]),
+				keys: CandidateKeys(vec![safrole_pub_key.into(), grandpa_pub_key.into()]),
 			},
 			RegisterValidatorDatum::V1 {
 				stake_ownership,
@@ -185,7 +185,7 @@ fn decode_v0_register_validator_datum(
 	let sidechain_pub_key = fields.get(1).as_bytes().map(SidechainPublicKey)?;
 	let sidechain_signature = fields.get(2).as_bytes().map(SidechainSignature)?;
 	let registration_utxo = decode_utxo_id_datum(fields.get(3))?;
-	let aura_pub_key = fields.get(4).as_bytes().map(AuraPublicKey)?;
+	let safrole_pub_key = fields.get(4).as_bytes().map(SafrolePublicKey)?;
 	let grandpa_pub_key = fields.get(5).as_bytes().map(GrandpaPublicKey)?;
 
 	let own_pkh = MainchainKeyHash(datum.as_bytes()?.try_into().ok()?);
@@ -195,7 +195,7 @@ fn decode_v0_register_validator_datum(
 		sidechain_signature,
 		registration_utxo,
 		own_pkh,
-		aura_pub_key,
+		safrole_pub_key,
 		grandpa_pub_key,
 	})
 }
@@ -239,7 +239,7 @@ fn decode_legacy_register_validator_datum(datum: &PlutusData) -> Option<Register
 	let sidechain_signature = fields.get(2).as_bytes().map(SidechainSignature)?;
 	let registration_utxo = decode_utxo_id_datum(fields.get(3))?;
 	let own_pkh = MainchainKeyHash(fields.get(4).as_bytes()?.try_into().ok()?);
-	let aura_pub_key = fields.get(5).as_bytes().map(AuraPublicKey)?;
+	let safrole_pub_key = fields.get(5).as_bytes().map(SafrolePublicKey)?;
 	let grandpa_pub_key = fields.get(6).as_bytes().map(GrandpaPublicKey)?;
 	Some(RegisterValidatorDatum::V0 {
 		stake_ownership,
@@ -247,7 +247,7 @@ fn decode_legacy_register_validator_datum(datum: &PlutusData) -> Option<Register
 		sidechain_signature,
 		registration_utxo,
 		own_pkh,
-		aura_pub_key,
+		safrole_pub_key,
 		grandpa_pub_key,
 	})
 }
@@ -292,7 +292,7 @@ impl From<RegisterValidatorDatum> for PlutusData {
 				sidechain_signature,
 				registration_utxo,
 				own_pkh,
-				aura_pub_key,
+				safrole_pub_key,
 				grandpa_pub_key,
 			} => {
 				let mut appendix_fields = PlutusList::new();
@@ -300,7 +300,7 @@ impl From<RegisterValidatorDatum> for PlutusData {
 				appendix_fields.add(&PlutusData::new_bytes(sidechain_pub_key.0));
 				appendix_fields.add(&PlutusData::new_bytes(sidechain_signature.0));
 				appendix_fields.add(&utxo_id_to_plutus_data(registration_utxo));
-				appendix_fields.add(&PlutusData::new_bytes(aura_pub_key.0));
+				appendix_fields.add(&PlutusData::new_bytes(safrole_pub_key.0));
 				appendix_fields.add(&PlutusData::new_bytes(grandpa_pub_key.0));
 				let appendix = ConstrPlutusData::new(&BigNum::zero(), &appendix_fields);
 				VersionedGenericDatum {
@@ -376,7 +376,7 @@ mod tests {
 				index: UtxoIndex(1),
 			},
 			own_pkh: MainchainKeyHash(hex!("aabbccddeeff00aabbccddeeff00aabbccddeeff00aabbccddeeff00")),
-			aura_pub_key: AuraPublicKey(hex!("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").into()),
+			safrole_pub_key: SafrolePublicKey(hex!("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").into()),
 			grandpa_pub_key: GrandpaPublicKey(hex!("88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee").into()),
 		}
 	}

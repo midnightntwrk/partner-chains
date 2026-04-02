@@ -3,7 +3,7 @@
 use crate::inherent_data::CreateInherentDataConfig;
 use crate::tests::runtime_api_mock::TestApi;
 use hex_literal::hex;
-use sc_consensus_aura::SlotDuration;
+use sp_consensus_slots::SlotDuration;
 use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sidechain_domain::*;
 use sidechain_slots::{ScSlotConfig, SlotsPerEpoch};

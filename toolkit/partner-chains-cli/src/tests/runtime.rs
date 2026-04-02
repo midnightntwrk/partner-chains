@@ -36,8 +36,8 @@ impl From<ecdsa::Public> for CrossChainPublic {
 	}
 }
 
-pub struct AuraLikeModule;
-impl BoundToRuntimeAppPublic for AuraLikeModule {
+pub struct SafroleLikeModule;
+impl BoundToRuntimeAppPublic for SafroleLikeModule {
 	type Public = sp_runtime::app_crypto::sr25519::AppPublic;
 }
 
@@ -49,7 +49,7 @@ impl BoundToRuntimeAppPublic for GrandpaLikeModule {
 impl_opaque_keys! {
 	#[derive(Ord, PartialOrd, MaxEncodedLen)]
 	pub struct TestSessionKeys {
-		pub aura: AuraLikeModule,
+		pub safrole: SafroleLikeModule,
 		pub grandpa: GrandpaLikeModule,
 	}
 }

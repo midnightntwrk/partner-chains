@@ -8,17 +8,16 @@ use partner_chains_db_sync_data_sources::McFollowerMetrics;
 use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
 use partner_chains_demo_runtime::{self, RuntimeApi, opaque::Block};
 use sc_client_api::BlockBackend;
-use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+use sc_consensus_slots::SlotProportion;
 use sc_consensus_grandpa::{GrandpaPruningFilter, SharedVoterState};
 pub use sc_executor::WasmExecutor;
-use sc_partner_chains_consensus_aura::import_queue as partner_chains_aura_import_queue;
+use sc_partner_chains_consensus_safrole::import_queue as safrole_import_queue;
 use sc_service::{Configuration, TaskManager, WarpSyncConfig, error::Error as ServiceError};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sidechain_mc_hash::McHashInherentDigest;
-use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
-use sp_partner_chains_consensus_aura::block_proposal::PartnerChainsProposerFactory;
+use sp_partner_chains_consensus_common::block_proposal::PartnerChainsProposerFactory;
 use sp_runtime::traits::Block as BlockT;
 use std::{sync::Arc, time::Duration};
 use time_source::SystemTimeSource;
@@ -148,15 +147,14 @@ pub fn new_partial(
 		.map_err(|err| ServiceError::Application(err.into()))?;
 	let inherent_config = CreateInherentDataConfig::new(epoch_config, sc_slot_config, time_source);
 
-	let import_queue = partner_chains_aura_import_queue::import_queue::<
-		AuraPair,
+	let import_queue = safrole_import_queue::import_queue::<
 		_,
 		_,
 		_,
 		_,
 		_,
 		McHashInherentDigest,
-	>(ImportQueueParams {
+	>(safrole_import_queue::SafroleImportQueueParams {
 		block_import: grandpa_block_import.clone(),
 		justification_import: Some(Box::new(grandpa_block_import.clone())),
 		client: client.clone(),
@@ -171,9 +169,7 @@ pub fn new_partial(
 		),
 		spawner: &task_manager.spawn_essential_handle(),
 		registry: config.prometheus_registry(),
-		check_for_equivocation: Default::default(),
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		compatibility_mode: Default::default(),
 	})?;
 
 	Ok(sc_service::PartialComponents {
@@ -332,8 +328,7 @@ pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as 
 			.map_err(|err| ServiceError::Application(err.into()))?;
 		let inherent_config =
 			CreateInherentDataConfig::new(mc_epoch_config, sc_slot_config.clone(), time_source);
-		let aura = sc_partner_chains_consensus_aura::start_aura::<
-			AuraPair,
+		let safrole = sc_partner_chains_consensus_safrole::start_safrole::<
 			_,
 			_,
 			_,
@@ -345,7 +340,7 @@ pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as 
 			_,
 			_,
 			McHashInherentDigest,
-		>(StartAuraParams {
+		>(sc_partner_chains_consensus_safrole::StartSafroleParams {
 			slot_duration: sc_slot_config.slot_duration,
 			client: client.clone(),
 			select_chain,
@@ -368,14 +363,14 @@ pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as 
 			block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
 			max_block_proposal_slot_portion: None,
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
-			compatibility_mode: Default::default(),
+			_phantom: std::marker::PhantomData,
 		})?;
 
-		// the AURA authoring task is considered essential, i.e. if it
+		// the Safrole authoring task is considered essential, i.e. if it
 		// fails we take down the service with it.
 		task_manager
 			.spawn_essential_handle()
-			.spawn_blocking("aura", Some("block-authoring"), aura);
+			.spawn_blocking("safrole", Some("block-authoring"), safrole);
 	}
 
 	if enable_grandpa {

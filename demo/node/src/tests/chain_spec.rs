@@ -2,7 +2,7 @@ use crate::chain_spec::pc_create_chain_spec;
 use partner_chains_cli::{CreateChainSpecConfig, ParsedPermissionedCandidatesKeys};
 use partner_chains_demo_runtime::opaque::SessionKeys;
 use sidechain_domain::{AssetName, MainchainAddress, PolicyId, UtxoId};
-use sp_core::{ecdsa, ed25519, sr25519};
+use sp_core::{bandersnatch, ecdsa, ed25519};
 use std::str::FromStr;
 
 #[test]
@@ -13,7 +13,7 @@ fn pc_create_chain_spec_test() {
 		initial_permissioned_candidates_parsed: vec![ParsedPermissionedCandidatesKeys {
 			sidechain: ecdsa::Public::from_raw([11u8; 33]),
 			keys: SessionKeys {
-				aura: sr25519::Public::from([12u8; 32]).into(),
+				safrole: pallet_safrole::AuthorityId::from(bandersnatch::Public::from_raw([12u8; 32])),
 				grandpa: ed25519::Public::from([13u8; 32]).into(),
 			},
 		}],
@@ -74,7 +74,7 @@ fn pc_create_chain_spec_test() {
 					"Permissioned": {
 						"id": "KWwG4siyRHiZtvV2nQSu6AHqjD68frQZwfZhT8zt7LWXYD64F",
 						"keys": {
-							"aura": "5CLW1ZaVdZdj6bf7nmvJfba6GbvxueXzV6Dw5fnPaKTiSARx",
+							"safrole": "5CLW1ZaVdZdj6bf7nmvJfba6GbvxueXzV6Dw5fnPaKTiSARx",
 							"grandpa": "5CMpMdu3LbHuj2TqX4RAUzXCHCqmNj8Fce43wAbcqSFZuNfp"
 						}
 					}
@@ -95,7 +95,7 @@ fn pc_create_chain_spec_test() {
 				[
 					"5CUUBrDiVEKVa655Bsm8sYc5An5Jqi52PetteUpMY2JFbuRF",
 					{
-						"aura": "5CLW1ZaVdZdj6bf7nmvJfba6GbvxueXzV6Dw5fnPaKTiSARx",
+						"safrole": "5CLW1ZaVdZdj6bf7nmvJfba6GbvxueXzV6Dw5fnPaKTiSARx",
 						"grandpa": "5CMpMdu3LbHuj2TqX4RAUzXCHCqmNj8Fce43wAbcqSFZuNfp"
 					}
 				]

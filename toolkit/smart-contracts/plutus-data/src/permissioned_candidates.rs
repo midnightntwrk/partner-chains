@@ -22,7 +22,7 @@ pub struct PermissionedCandidateDatumV0 {
 	/// Sidechain public key of the trustless candidate
 	pub sidechain_public_key: SidechainPublicKey,
 	/// Aura public key of the trustless candidate
-	pub aura_public_key: AuraPublicKey,
+	pub safrole_public_key: SafrolePublicKey,
 	/// GRANDPA public key of the trustless candidate
 	pub grandpa_public_key: GrandpaPublicKey,
 }
@@ -57,7 +57,7 @@ impl From<PermissionedCandidateDatumV0> for PermissionedCandidateData {
 		Self {
 			sidechain_public_key: value.sidechain_public_key,
 			keys: CandidateKeys(vec![
-				value.aura_public_key.into(),
+				value.safrole_public_key.into(),
 				value.grandpa_public_key.into(),
 			]),
 		}
@@ -83,12 +83,12 @@ impl From<PermissionedCandidateDatums> for Vec<PermissionedCandidateData> {
 ///   - appendix:
 ///     [
 ///       [ candidates[0].sidechain_public_key
-///       , candidates[0].aura_public_key
+///       , candidates[0].safrole_public_key
 ///       , candidates[0].grandpa_public_key
 ///       ]
 ///     ,
 ///       [ candidates[1].sidechain_public_key
-///       , candidates[1].aura_public_key
+///       , candidates[1].safrole_public_key
 ///       , candidates[1].grandpa_public_key
 ///       ]
 ///       // etc.
@@ -167,7 +167,7 @@ pub fn permissioned_candidates_to_plutus_data(
 		.into()
 	}
 
-	if candidates.iter().all(|c| c.keys.has_only_aura_and_grandpa_keys()) {
+	if candidates.iter().all(|c| c.keys.has_only_safrole_and_grandpa_keys()) {
 		candidates_to_plutus_data_v0(candidates)
 	} else {
 		candidates_to_plutus_data_v1(candidates)
@@ -234,7 +234,7 @@ fn decode_legacy_candidate_datum(datum: &PlutusData) -> Option<PermissionedCandi
 
 	Some(PermissionedCandidateDatumV0 {
 		sidechain_public_key: SidechainPublicKey(sc),
-		aura_public_key: AuraPublicKey(aura),
+		safrole_public_key: SafrolePublicKey(aura),
 		grandpa_public_key: GrandpaPublicKey(grandpa),
 	})
 }
@@ -276,7 +276,7 @@ mod tests {
 				sidechain_public_key: SidechainPublicKey(
 					hex!("cb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854").into(),
 				),
-				aura_public_key: AuraPublicKey(
+				safrole_public_key: SafrolePublicKey(
 					hex!("bf20afa1c1a72af3341fa7a447e3f9eada9f3d054a7408fb9e49ad4d6e6559ec").into(),
 				),
 				grandpa_public_key: GrandpaPublicKey(
@@ -287,7 +287,7 @@ mod tests {
 				sidechain_public_key: SidechainPublicKey(
 					hex!("79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf").into(),
 				),
-				aura_public_key: AuraPublicKey(
+				safrole_public_key: SafrolePublicKey(
 					hex!("56d1da82e56e4cb35b13de25f69a3e9db917f3e13d6f786321f4b0a9dc153b19").into(),
 				),
 				grandpa_public_key: GrandpaPublicKey(
@@ -328,14 +328,14 @@ mod tests {
 					{"list":[
 						{"bytes": "cb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854"},
 						{"list": [
-							{"list": [{"bytes": hex::encode(b"aura")}, {"bytes": "bf20afa1c1a72af3341fa7a447e3f9eada9f3d054a7408fb9e49ad4d6e6559ec"}]},
+							{"list": [{"bytes": hex::encode(b"safr")}, {"bytes": "bf20afa1c1a72af3341fa7a447e3f9eada9f3d054a7408fb9e49ad4d6e6559ec"}]},
 							{"list": [{"bytes": hex::encode(b"gran")}, {"bytes": "9042a40b0b1baa9adcead024432a923eac706be5e1a89d7f2f2d58bfa8f3c26d"}]}
 						]}
 					]},
 					{"list":[
 						{"bytes": "79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf"},
 						{"list": [
-							{"list": [{"bytes": hex::encode(b"aura")}, {"bytes": "56d1da82e56e4cb35b13de25f69a3e9db917f3e13d6f786321f4b0a9dc153b19"}]},
+							{"list": [{"bytes": hex::encode(b"safr")}, {"bytes": "56d1da82e56e4cb35b13de25f69a3e9db917f3e13d6f786321f4b0a9dc153b19"}]},
 							{"list": [{"bytes": hex::encode(b"gran")}, {"bytes": "7392f3ea668aa2be7997d82c07bcfbec3ee4a9a4e01e3216d92b8f0d0a086c32"}]}
 						]}
 					]}
@@ -356,7 +356,7 @@ mod tests {
 						.to_vec(),
 				),
 				keys: CandidateKeys(vec![
-					AuraPublicKey(
+					SafrolePublicKey(
 						hex!("bf20afa1c1a72af3341fa7a447e3f9eada9f3d054a7408fb9e49ad4d6e6559ec")
 							.to_vec(),
 					)
@@ -374,7 +374,7 @@ mod tests {
 						.to_vec(),
 				),
 				keys: CandidateKeys(vec![
-					AuraPublicKey(
+					SafrolePublicKey(
 						hex!("56d1da82e56e4cb35b13de25f69a3e9db917f3e13d6f786321f4b0a9dc153b19")
 							.to_vec(),
 					)
@@ -443,7 +443,7 @@ mod tests {
 				sidechain_public_key: SidechainPublicKey(
 					hex!("cb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854").into(),
 				),
-				aura_public_key: AuraPublicKey(
+				safrole_public_key: SafrolePublicKey(
 					hex!("bf20afa1c1a72af3341fa7a447e3f9eada9f3d054a7408fb9e49ad4d6e6559ec").into(),
 				),
 				grandpa_public_key: GrandpaPublicKey(
@@ -454,7 +454,7 @@ mod tests {
 				sidechain_public_key: SidechainPublicKey(
 					hex!("79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf").into(),
 				),
-				aura_public_key: AuraPublicKey(
+				safrole_public_key: SafrolePublicKey(
 					hex!("56d1da82e56e4cb35b13de25f69a3e9db917f3e13d6f786321f4b0a9dc153b19").into(),
 				),
 				grandpa_public_key: GrandpaPublicKey(

@@ -1,11 +1,7 @@
-pub mod block_proposal;
-pub mod inherent_digest;
+// Re-export from consensus-common for backward compatibility.
+// New code should depend on sp-partner-chains-consensus-common directly.
+pub use sp_partner_chains_consensus_common::block_proposal;
+pub use sp_partner_chains_consensus_common::inherent_digest;
 
-pub use inherent_digest::InherentDigest;
-use sp_consensus_slots::Slot;
-
-/// Provides the current slot for Aura verification purpose.
-pub trait CurrentSlotProvider {
-	/// Returns the current slot, according to wall-time and slot duration configuration.
-	fn slot(&self) -> Slot;
-}
+pub use sp_partner_chains_consensus_common::inherent_digest::InherentDigest;
+pub use sp_partner_chains_consensus_common::CurrentSlotProvider;

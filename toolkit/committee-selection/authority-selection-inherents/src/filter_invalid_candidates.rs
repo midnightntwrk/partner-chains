@@ -542,7 +542,7 @@ mod tests {
 			let (mainchain_pub_key, mut registration_data, genesis_utxo) =
 				create_parameters(signing_sidechain_account, sidechain_pub_key);
 			registration_data.keys = CandidateKeys(vec![
-				AuraPublicKey(vec![1; 32]).into(),
+				SafrolePublicKey(vec![1; 32]).into(),
 				GrandpaPublicKey(vec![3; 4]).into(),
 			]);
 			assert_eq!(
@@ -667,7 +667,7 @@ mod tests {
 		let permissioned_candidates = vec![
 			PermissionedCandidateData {
 				keys: CandidateKeys(vec![
-					AuraPublicKey(vec![1, 2]).into(),
+					SafrolePublicKey(vec![1, 2]).into(),
 					valid_grandpa_key.clone().into(),
 				]),
 				..valid_candidate.clone()

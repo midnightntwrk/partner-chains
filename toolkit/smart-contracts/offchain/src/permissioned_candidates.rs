@@ -4,7 +4,7 @@
 //! This UTXO should have 1 token of the Permissioned Candidates Policy with an empty asset name.
 //! The datum encodes Permissioned Candidates using VersionedGenericDatum envelope with the Permissioned Candidates stored
 //! in the `datum` field of it. Field should contain list of list, where each inner list is a triple of byte strings
-//! `[sidechain_public_key, aura_public_key, grandpa_publicKey]`.
+//! `[sidechain_public_key, safrole_public_key, grandpa_publicKey]`.
 
 use crate::await_tx::AwaitTx;
 use crate::csl::{
@@ -311,7 +311,7 @@ mod tests {
 	use ogmios_client::types::{Asset as OgmiosAsset, OgmiosTx, OgmiosUtxo, OgmiosValue};
 	use partner_chains_plutus_data::permissioned_candidates::permissioned_candidates_to_plutus_data;
 	use sidechain_domain::{
-		AuraPublicKey, CandidateKeys, GrandpaPublicKey, PermissionedCandidateData,
+		SafrolePublicKey, CandidateKeys, GrandpaPublicKey, PermissionedCandidateData,
 		SidechainPublicKey,
 	};
 
@@ -547,7 +547,7 @@ mod tests {
 						.into(),
 				),
 				keys: CandidateKeys(vec![
-					AuraPublicKey(
+					SafrolePublicKey(
 						hex!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 							.into(),
 					)
@@ -565,7 +565,7 @@ mod tests {
 						.into(),
 				),
 				keys: CandidateKeys(vec![
-					AuraPublicKey(
+					SafrolePublicKey(
 						hex!("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
 							.into(),
 					)

@@ -4,11 +4,11 @@ use authority_selection_inherents::{
 };
 use derive_new::new;
 use jsonrpsee::core::async_trait;
+use pallet_safrole::find_pre_digest;
 use partner_chains_demo_runtime::{
 	AccountId, BlockAuthor, CrossChainPublic,
 	opaque::{Block, SessionKeys},
 };
-use sc_consensus_aura::{SlotDuration, find_pre_digest};
 use sc_service::Arc;
 use sidechain_domain::{
 	DelegatorKey, McBlockHash, ScEpochNumber, mainchain_epoch::MainchainEpochConfig,
@@ -22,16 +22,51 @@ use sp_block_participation::{
 };
 use sp_block_production_log::{BlockAuthorInherentProvider, BlockProductionLogApi};
 use sp_blockchain::HeaderBackend;
-use sp_consensus_aura::{
-	Slot, inherents::InherentDataProvider as AuraIDP, sr25519::AuthorityPair as AuraPair,
-};
-use sp_core::Pair;
+use sp_consensus_slots::{Slot, SlotDuration};
+
+/// Minimal slot inherent data provider that satisfies `InherentDataProviderExt`
+/// (first tuple element must deref to `Slot`).
+/// Unlike AuraIDP, this doesn't inject an "auraslot" inherent — the slot
+/// reaches pallet_safrole via pallet_timestamp's OnTimestampSet.
+pub struct SlotIDP(Slot);
+
+impl SlotIDP {
+	pub fn from_timestamp_and_slot_duration(timestamp: Timestamp, slot_duration: SlotDuration) -> Self {
+		Self(Slot::from_timestamp(timestamp, slot_duration))
+	}
+}
+
+impl core::ops::Deref for SlotIDP {
+	type Target = Slot;
+	fn deref(&self) -> &Slot {
+		&self.0
+	}
+}
+
+#[async_trait]
+impl sp_inherents::InherentDataProvider for SlotIDP {
+	async fn provide_inherent_data(
+		&self,
+		_inherent_data: &mut sp_inherents::InherentData,
+	) -> Result<(), sp_inherents::Error> {
+		// No inherent data to provide — slot is set via OnTimestampSet
+		Ok(())
+	}
+
+	async fn try_handle_error(
+		&self,
+		_: &sp_inherents::InherentIdentifier,
+		_: &[u8],
+	) -> Option<Result<(), sp_inherents::Error>> {
+		None
+	}
+}
 use sp_governed_map::{GovernedMapDataSource, GovernedMapIDPApi, GovernedMapInherentDataProvider};
 use sp_inherents::CreateInherentDataProviders;
 use sp_partner_chains_bridge::{
 	TokenBridgeDataSource, TokenBridgeIDPRuntimeApi, TokenBridgeInherentDataProvider,
 };
-use sp_partner_chains_consensus_aura::CurrentSlotProvider;
+use sp_partner_chains_consensus_common::CurrentSlotProvider;
 use sp_runtime::traits::{Block as BlockT, Header, Zero};
 use sp_session_validator_management::SessionValidatorManagementApi;
 use sp_timestamp::{InherentDataProvider as TimestampIDP, Timestamp};
@@ -66,7 +101,7 @@ where
 	T::Api: TokenBridgeIDPRuntimeApi<Block>,
 {
 	type InherentDataProviders = (
-		AuraIDP,
+		SlotIDP,
 		TimestampIDP,
 		McHashIDP,
 		AriadneIDP,
@@ -92,13 +127,14 @@ where
 		} = self;
 		let CreateInherentDataConfig { mc_epoch_config, sc_slot_config, time_source } = config;
 
-		let (slot, timestamp) =
-			timestamp_and_slot_cidp(sc_slot_config.slot_duration, time_source.clone());
+		let timestamp = TimestampIDP::new(Timestamp::new(time_source.get_current_time_millis()));
+		let slot_idp = SlotIDP::from_timestamp_and_slot_duration(*timestamp, sc_slot_config.slot_duration);
+		let slot = *slot_idp;
 		let parent_header = client.expect_header(parent_hash)?;
 		let mc_hash = McHashIDP::new_proposal(
 			parent_header,
 			mc_hash_data_source.as_ref(),
-			*slot,
+			slot,
 			sc_slot_config.slot_duration,
 		)
 		.await?;
@@ -108,19 +144,19 @@ where
 			sc_slot_config,
 			mc_epoch_config,
 			parent_hash,
-			*slot,
+			slot,
 			authority_selection_data_source.as_ref(),
 			mc_hash.mc_epoch(),
 		)
 		.await?;
 		let block_producer_id_provider =
-			BlockAuthorInherentProvider::new(client.as_ref(), parent_hash, *slot)?;
+			BlockAuthorInherentProvider::new(client.as_ref(), parent_hash, slot)?;
 
 		let payouts = BlockParticipationInherentDataProvider::new(
 			client.as_ref(),
 			block_participation_data_source.as_ref(),
 			parent_hash,
-			*slot,
+			slot,
 			mc_epoch_config,
 			config.sc_slot_config.slot_duration,
 		)
@@ -144,7 +180,7 @@ where
 		.await?;
 
 		Ok((
-			slot,
+			slot_idp,
 			timestamp,
 			mc_hash,
 			ariadne_data_provider,
@@ -169,7 +205,8 @@ pub struct VerifierCIDP<T> {
 
 impl<T: Send + Sync> CurrentSlotProvider for VerifierCIDP<T> {
 	fn slot(&self) -> Slot {
-		*timestamp_and_slot_cidp(self.config.slot_duration(), self.config.time_source.clone()).0
+		let timestamp = Timestamp::new(self.config.time_source.get_current_time_millis());
+		Slot::from_timestamp(timestamp, self.config.slot_duration())
 	}
 }
 
@@ -278,14 +315,14 @@ where
 	}
 }
 
+/// Extract the slot from a parent header's Safrole pre-digest.
 pub fn slot_from_predigest(
 	header: &<Block as BlockT>::Header,
 ) -> Result<Option<Slot>, Box<dyn Error + Send + Sync>> {
 	if header.number().is_zero() {
-		// genesis block doesn't have a slot
 		Ok(None)
 	} else {
-		Ok(Some(find_pre_digest::<Block, <AuraPair as Pair>::Signature>(header)?))
+		Ok(find_pre_digest::<Block>(header).map(|d| d.slot()))
 	}
 }
 
@@ -301,13 +338,4 @@ impl CreateInherentDataConfig {
 	pub fn slot_duration(&self) -> SlotDuration {
 		self.sc_slot_config.slot_duration
 	}
-}
-
-fn timestamp_and_slot_cidp(
-	slot_duration: SlotDuration,
-	time_source: Arc<dyn TimeSource + Send + Sync>,
-) -> (AuraIDP, TimestampIDP) {
-	let timestamp = TimestampIDP::new(Timestamp::new(time_source.get_current_time_millis()));
-	let slot = AuraIDP::from_timestamp_and_slot_duration(*timestamp, slot_duration);
-	(slot, timestamp)
 }

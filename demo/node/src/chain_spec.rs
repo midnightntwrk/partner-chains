@@ -42,7 +42,7 @@ pub fn pc_create_chain_spec(config: &CreateChainSpecConfig<SessionKeys>) -> serd
 	let runtime_genesis_config = partner_chains_demo_runtime::RuntimeGenesisConfig {
 		system: partner_chains_demo_runtime::SystemConfig::default(),
 		balances: partner_chains_demo_runtime::BalancesConfig::default(),
-		aura: partner_chains_demo_runtime::AuraConfig::default(),
+		safrole: pallet_safrole::GenesisConfig::default(),
 		grandpa: partner_chains_demo_runtime::GrandpaConfig::default(),
 		sudo: partner_chains_demo_runtime::SudoConfig::default(),
 		transaction_payment: Default::default(),

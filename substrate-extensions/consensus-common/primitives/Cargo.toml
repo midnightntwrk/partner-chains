@@ -1,13 +1,12 @@
 [package]
-name = "sp-partner-chains-consensus-aura"
+name = "sp-partner-chains-consensus-common"
 version.workspace = true
-description = "Primitives required by Partner Chains customized Aura consensus"
+description = "Consensus-agnostic primitives for Partner Chains block production"
 authors.workspace = true
 homepage.workspace = true
 edition.workspace = true
 license = "Apache-2.0"
 repository.workspace = true
-readme = "README.md"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -16,8 +15,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dependencies]
-sp-partner-chains-consensus-common = { workspace = true }
-futures = {workspace = true}
+futures = { workspace = true }
 sp-consensus = { workspace = true }
 sp-consensus-slots = { workspace = true }
 sp-runtime = { optional = true, workspace = true }
@@ -29,7 +27,6 @@ sp-blockchain = { workspace = true }
 [features]
 default = ["std"]
 std = [
-	"sp-partner-chains-consensus-common/std",
 	"sp-consensus-slots/std",
 	"sp-runtime/std",
 	"sp-inherents/std",

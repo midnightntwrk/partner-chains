@@ -1,6 +1,6 @@
 use crate::chain_spec::*;
 use partner_chains_demo_runtime::{
-	AuraConfig, BalancesConfig, BridgeConfig, GovernedMapConfig, GrandpaConfig,
+	BalancesConfig, BridgeConfig, GovernedMapConfig, GrandpaConfig,
 	RuntimeGenesisConfig, SessionCommitteeManagementConfig, SessionConfig, SidechainConfig,
 	SudoConfig, SystemConfig, TestHelperPalletConfig,
 };
@@ -19,7 +19,7 @@ pub fn chain_spec() -> Result<ChainSpec, envy::Error> {
 			balances: vec![],
 			dev_accounts: None,
 		},
-		aura: AuraConfig { authorities: vec![] },
+		safrole: pallet_safrole::GenesisConfig::default(),
 		grandpa: GrandpaConfig { authorities: vec![], ..Default::default() },
 		sudo: SudoConfig {
 			// No sudo account by default, please update with your preferences.

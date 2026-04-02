@@ -347,7 +347,7 @@ mod tests {
 					.parse()
 					.unwrap(),
 			keys: vec![
-				CandidateKeyParam::new(*b"aura", hex!("79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf").to_vec()),
+				CandidateKeyParam::new(*b"safr", hex!("79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf").to_vec()),
 				CandidateKeyParam::new(*b"gran", hex!("1a55db596380bc63f5ee964565359b5ea8e0096c798c3281692df097abbd9aa4b657f887915ad2a52fc85c674ef4044baeaf7149546af93a2744c379b9798f07").to_vec()),
 			],
 			partner_chain_signature: SidechainSignature(
@@ -410,12 +410,12 @@ mod tests {
 			},
 			"initial_permissioned_candidates": [
 				{
-				  "aura_pub_key": "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+				  "safrole_pub_key": "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
 				  "grandpa_pub_key": "0x88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee",
 				  "partner_chain_pub_key": "0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1"
 				},
 				{
-				  "aura_pub_key": "0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
+				  "safrole_pub_key": "0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
 				  "grandpa_pub_key": "0xd17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69",
 				  "partner_chain_pub_key": "0x0390084fdbf27d2b79d26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f27"
 				}
@@ -464,7 +464,7 @@ mod tests {
 			own_pkh: MainchainKeyHash(hex!("7fa48bb8fb5d6804fad26237738ce490d849e4567161e38ab8415ff3")),
 			registration_utxo: UtxoId { tx_hash: McTxHash(hex!("cdefe62b0a0016c2ccf8124d7dda71f6865283667850cc7b471f761d2bc1eb13")), index: UtxoIndex(0) },
 			keys: CandidateKeys(vec![
-				AuraPublicKey(hex!("79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf").to_vec()).into(),
+				SafrolePublicKey(hex!("79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf").to_vec()).into(),
 				GrandpaPublicKey(hex!("1a55db596380bc63f5ee964565359b5ea8e0096c798c3281692df097abbd9aa4b657f887915ad2a52fc85c674ef4044baeaf7149546af93a2744c379b9798f07").to_vec()).into()
 			])
 		}

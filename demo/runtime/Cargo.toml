@@ -27,7 +27,7 @@ serde_json = { workspace = true, default-features = false, features = [
 	"alloc",
 ] }
 
-pallet-aura = { workspace = true }
+pallet-safrole = { workspace = true }
 pallet-balances = { workspace = true }
 frame-support = { workspace = true }
 pallet-grandpa = { workspace = true }
@@ -44,7 +44,6 @@ pallet-transaction-payment = { workspace = true }
 frame-executive = { workspace = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
-sp-consensus-aura = { workspace = true }
 sp-consensus-grandpa = { workspace = true }
 sp-consensus-slots = { workspace = true }
 sp-core = { workspace = true }
@@ -124,7 +123,7 @@ std = [
 	"frame-system/std",
 	"frame-executive/std",
 	"frame-try-runtime/std",
-	"pallet-aura/std",
+	"pallet-safrole/std",
 	"pallet-balances/std",
 	"pallet-block-producer-fees/std",
 	"pallet-block-production-log/std",
@@ -141,7 +140,6 @@ std = [
 	"sp-api/std",
 	"sp-block-builder/std",
 	"sp-block-producer-fees/std",
-	"sp-consensus-aura/std",
 	"sp-consensus-grandpa/std",
 	"sp-consensus-slots/std",
 	"sp-core/std",
@@ -195,7 +193,6 @@ try-runtime = [
 	"frame-executive/try-runtime",
 	"frame-system/try-runtime",
 	"frame-support/try-runtime",
-	"pallet-aura/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-sudo/try-runtime",

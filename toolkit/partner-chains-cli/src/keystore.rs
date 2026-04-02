@@ -15,9 +15,10 @@ impl<'a> KeyDefinition<'a> {
 	}
 }
 
-/// Well known definition of AURA key
-pub const AURA: KeyDefinition<'static> =
-	KeyDefinition { name: "AURA", scheme: "sr25519", key_type: "aura" };
+/// Well known definition of Safrole (block production) key.
+/// Uses Bandersnatch scheme. Key type "safr" matches pallet_safrole::KEY_TYPE.
+pub const SAFROLE: KeyDefinition<'static> =
+	KeyDefinition { name: "Safrole", scheme: "bandersnatch", key_type: "safr" };
 /// Well known definition of Grandpa key
 pub const GRANDPA: KeyDefinition<'static> =
 	KeyDefinition { name: "Grandpa", scheme: "ed25519", key_type: "gran" };

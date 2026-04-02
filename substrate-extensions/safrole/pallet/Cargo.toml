@@ -1,0 +1,55 @@
+[package]
+name = "pallet-safrole"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license = "Apache-2.0"
+description = "Safrole VRF-based block production pallet (JAM Gray Paper)"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+parity-scale-codec = { workspace = true, features = ["derive"] }
+scale-info = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-consensus-slots = { workspace = true }
+sp-application-crypto = { workspace = true, features = ["bandersnatch-experimental"] }
+sp-core = { workspace = true, features = ["bandersnatch-experimental"] }
+sp-runtime = { workspace = true }
+sp-io = { workspace = true }
+sp-api = { workspace = true }
+pallet-timestamp = { workspace = true }
+
+[dev-dependencies]
+sp-io = { workspace = true, features = ["std"] }
+
+[features]
+default = ["std"]
+std = [
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"log/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-consensus-slots/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-io/std",
+	"sp-api/std",
+	"sp-application-crypto/std",
+	"pallet-timestamp/std",
+]
+runtime-benchmarks = [
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+]

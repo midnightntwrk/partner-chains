@@ -18,6 +18,9 @@ members = [
 	"toolkit/committee-selection/pallet",
 	"toolkit/committee-selection/rpc",
 	"substrate-extensions/aura/primitives",
+	"substrate-extensions/safrole/pallet",
+	"substrate-extensions/safrole/consensus",
+	"substrate-extensions/consensus-common/primitives",
 	"toolkit/block-production-log/primitives",
 	"toolkit/sidechain/domain",
 	"toolkit/committee-selection/selection",
@@ -299,6 +302,9 @@ authority-selection-inherents = { path = "toolkit/committee-selection/authority-
 sc-partner-chains-consensus-aura = { path = "substrate-extensions/aura/consensus", default-features = false }
 sp-partner-chains-consensus-aura = { path = "substrate-extensions/aura/primitives", default-features = false }
 pallet-partner-chains-session = { path = "substrate-extensions/partner-chains-session", default-features = false }
+pallet-safrole = { path = "substrate-extensions/safrole/pallet", default-features = false }
+sp-partner-chains-consensus-common = { path = "substrate-extensions/consensus-common/primitives", default-features = false }
+sc-partner-chains-consensus-safrole = { path = "substrate-extensions/safrole/consensus", default-features = false }
 
 # block production and rewards
 pallet-block-production-log = { path = "toolkit/block-production-log/pallet", default-features = false }

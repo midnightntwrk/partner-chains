@@ -32,7 +32,7 @@ use partner_chains_cardano_offchain::{
 };
 use partner_chains_plutus_data::reserve::ReserveDatum;
 use sidechain_domain::{
-	AdaBasedStaking, AssetId, AssetName, AuraPublicKey, CandidateKeys, CandidateRegistration,
+	AdaBasedStaking, AssetId, AssetName, SafrolePublicKey, CandidateKeys, CandidateRegistration,
 	DParameter, GrandpaPublicKey, MainchainKeyHash, MainchainSignature, McTxHash,
 	PermissionedCandidateData, PolicyId, SidechainPublicKey, SidechainSignature,
 	StakePoolPublicKey, UtxoId, UtxoIndex, byte_string::ByteString,
@@ -565,7 +565,7 @@ fn make_candidate(n: u8) -> PermissionedCandidateData {
 	PermissionedCandidateData {
 		sidechain_public_key: SidechainPublicKey([n; 33].to_vec()),
 		keys: CandidateKeys(vec![
-			AuraPublicKey([n; 32].to_vec()).into(),
+			SafrolePublicKey([n; 32].to_vec()).into(),
 			GrandpaPublicKey([n; 32].to_vec()).into(),
 		]),
 	}
@@ -793,7 +793,7 @@ async fn run_register<T: QueryLedgerState + Transactions + QueryNetwork + QueryU
 			own_pkh: EVE_PUBLIC_KEY_HASH,
 			registration_utxo,
 			keys: CandidateKeys(vec![
-				AuraPublicKey([22u8; 32].to_vec()).into(),
+				SafrolePublicKey([22u8; 32].to_vec()).into(),
 				GrandpaPublicKey([23u8; 32].to_vec()).into(),
 			]),
 		},

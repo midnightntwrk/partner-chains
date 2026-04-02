@@ -16,7 +16,7 @@ pub struct MockRegistration {
 	pub sidechain_signature: ByteString,
 	pub registration_utxo: UtxoId,
 	pub status: MockRegistrationStatus,
-	pub aura_pub_key: ByteString,
+	pub safrole_pub_key: ByteString,
 	pub grandpa_pub_key: ByteString,
 }
 
@@ -67,7 +67,7 @@ impl From<MockRegistration> for CandidateRegistrations {
 			},
 			tx_inputs: vec![mock.registration_utxo],
 			keys: CandidateKeys(vec![
-				AuraPublicKey(mock.aura_pub_key.0).into(),
+				SafrolePublicKey(mock.safrole_pub_key.0).into(),
 				GrandpaPublicKey(mock.grandpa_pub_key.0).into(),
 			]),
 		}];
@@ -87,7 +87,7 @@ pub enum MockRegistrationStatus {
 pub struct MockPermissionedCandidate {
 	name: Option<String>,
 	sidechain_pub_key: ByteString,
-	aura_pub_key: ByteString,
+	safrole_pub_key: ByteString,
 	grandpa_pub_key: ByteString,
 }
 
@@ -106,14 +106,14 @@ impl From<MockPermissionedCandidate> for PermissionedCandidateData {
 		MockPermissionedCandidate {
 			name: _,
 			sidechain_pub_key,
-			aura_pub_key,
+			safrole_pub_key,
 			grandpa_pub_key,
 		}: MockPermissionedCandidate,
 	) -> Self {
 		Self {
 			sidechain_public_key: SidechainPublicKey(sidechain_pub_key.0),
 			keys: CandidateKeys(vec![
-				AuraPublicKey(aura_pub_key.0).into(),
+				SafrolePublicKey(safrole_pub_key.0).into(),
 				GrandpaPublicKey(grandpa_pub_key.0).into(),
 			]),
 		}

@@ -21,14 +21,13 @@ use crate::{
 };
 use alloc::{vec, vec::Vec};
 use serde_json::Value;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_genesis_builder::{self, PresetId};
 use sp_keyring::Sr25519Keyring;
 
 // Returns the genesis config presets populated with given parameters.
 fn testnet_genesis(
-	initial_authorities: Vec<(AuraId, GrandpaId)>,
+	initial_authorities: Vec<(pallet_safrole::AuthorityId, GrandpaId)>,
 	endowed_accounts: Vec<AccountId>,
 	root: AccountId,
 ) -> Value {
@@ -41,11 +40,9 @@ fn testnet_genesis(
 				.collect::<Vec<_>>(),
 			dev_accounts: None,
 		},
-		aura: pallet_aura::GenesisConfig {
-			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
-		},
+		safrole: Default::default(),
 		grandpa: pallet_grandpa::GenesisConfig {
-			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect::<Vec<_>>(),
+			authorities: initial_authorities.iter().map(|(_, g)| (g.clone(), 1)).collect::<Vec<_>>(),
 			..Default::default()
 		},
 		sudo: SudoConfig { key: Some(root) },
@@ -74,7 +71,7 @@ fn testnet_genesis(
 pub fn development_config_genesis() -> Value {
 	testnet_genesis(
 		vec![(
-			sp_keyring::Sr25519Keyring::Alice.public().into(),
+			pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw([0u8; 32])),
 			sp_keyring::Ed25519Keyring::Alice.public().into(),
 		)],
 		vec![
@@ -92,11 +89,11 @@ pub fn local_config_genesis() -> Value {
 	testnet_genesis(
 		vec![
 			(
-				sp_keyring::Sr25519Keyring::Alice.public().into(),
+				pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw([0u8; 32])),
 				sp_keyring::Ed25519Keyring::Alice.public().into(),
 			),
 			(
-				sp_keyring::Sr25519Keyring::Bob.public().into(),
+				pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw([0u8; 32])),
 				sp_keyring::Ed25519Keyring::Bob.public().into(),
 			),
 		],

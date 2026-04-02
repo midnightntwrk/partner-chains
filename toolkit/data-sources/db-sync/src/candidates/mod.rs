@@ -234,7 +234,7 @@ impl CandidatesDataSourceImpl {
 						sidechain_signature,
 						registration_utxo,
 						own_pkh: _own_pkh,
-						aura_pub_key,
+						safrole_pub_key,
 						grandpa_pub_key,
 					} => Ok(RegisteredCandidate {
 						stake_pool_pub_key: stake_ownership.pub_key,
@@ -244,7 +244,7 @@ impl CandidatesDataSourceImpl {
 						cross_chain_signature: CrossChainSignature(sidechain_signature.0.clone()),
 						sidechain_signature,
 						sidechain_pub_key,
-						keys: CandidateKeys(vec![aura_pub_key.into(), grandpa_pub_key.into()]),
+						keys: CandidateKeys(vec![safrole_pub_key.into(), grandpa_pub_key.into()]),
 						registration_utxo,
 						tx_inputs: c.tx_inputs,
 						utxo_info: c.utxo_info,

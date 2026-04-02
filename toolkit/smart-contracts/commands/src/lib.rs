@@ -191,7 +191,7 @@ mod test {
 
 	use hex_literal::hex;
 	use sidechain_domain::{
-		AuraPublicKey, CandidateKey, CandidateKeys, GrandpaPublicKey, PermissionedCandidateData,
+		SafrolePublicKey, CandidateKey, CandidateKeys, GrandpaPublicKey, PermissionedCandidateData,
 		SidechainPublicKey,
 	};
 
@@ -240,7 +240,7 @@ mod test {
 				hex!("039799ff93d184146deacaa455dade51b13ed16f23cdad11d1ad6af20103391180").to_vec(),
 			),
 			keys: CandidateKeys(vec![
-				AuraPublicKey(
+				SafrolePublicKey(
 					hex!("e85534c93315d60f808568d1dce5cb9e8ba6ed0b204209c5cc8f3bec56c10b73")
 						.to_vec(),
 				)

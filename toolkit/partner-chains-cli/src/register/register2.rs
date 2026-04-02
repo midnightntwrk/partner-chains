@@ -148,7 +148,7 @@ mod tests {
 --partner-chain-signature 7a7e3e585a5dc248d4a2772814e1b58c90313443dd99369f994e960ecc4931442a08305743db7ab42ab9b8672e00250e1cc7c08bc018b0630a8197c4f95528a301 \\
 --spo-public-key 0xcef2d1630c034d3b9034eb7903d61f419a3074a1ad01d4550cc72f2b733de6e7 \\
 --spo-signature 0xaaa39fbf163ed77c69820536f5dc22854e7e13f964f1e077efde0844a09bde64c1aab4d2b401e0fe39b43c91aa931cad26fa55c8766378462c06d86c85134801 \\
---keys aura:df883ee0648f33b6103017b61be702017742d501b8fe73b1d69ca0157460b777 \\
+--keys safr:df883ee0648f33b6103017b61be702017742d501b8fe73b1d69ca0157460b777 \\
 --keys gran:5a091a06abd64f245db11d2987b03218c6bd83d64c262fe10e3a2a1230e90327",
 			),
 		]
@@ -160,7 +160,7 @@ mod tests {
             registration_utxo: "7e9ebd0950ae1bec5606f0cd7ac88b3c60b1103d7feb6ffa36402edae4d1b617#0".parse().unwrap(),
             partner_chain_pub_key: "0x031e75acbf45ef8df98bbe24b19b28fff807be32bf88838c30c0564d7bec5301f6".parse().unwrap(),
 			keys: vec![
-				CandidateKeyParam::new(*b"aura", hex!("df883ee0648f33b6103017b61be702017742d501b8fe73b1d69ca0157460b777").to_vec()),
+				CandidateKeyParam::new(*b"safr", hex!("df883ee0648f33b6103017b61be702017742d501b8fe73b1d69ca0157460b777").to_vec()),
 				CandidateKeyParam::new(*b"gran", hex!("5a091a06abd64f245db11d2987b03218c6bd83d64c262fe10e3a2a1230e90327").to_vec())
 			],
             partner_chain_signature: "7a7e3e585a5dc248d4a2772814e1b58c90313443dd99369f994e960ecc4931442a08305743db7ab42ab9b8672e00250e1cc7c08bc018b0630a8197c4f95528a301".parse().unwrap()

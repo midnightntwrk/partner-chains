@@ -8,11 +8,11 @@ use sidechain_mc_hash::McHashInherentDigest;
 use sidechain_slots::Slot;
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_core::{ecdsa, ed25519, sr25519};
+use sp_core::{ecdsa, ed25519};
 use sp_governed_map::MainChainScriptsV1;
 use sp_inherents::InherentIdentifier;
 use sp_runtime::Digest;
-use sp_runtime::key_types::{AURA, GRANDPA};
+use sp_runtime::key_types::GRANDPA;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor, Zero};
 use sp_sidechain::GetGenesisUtxo;
 use std::collections::HashMap;
@@ -80,9 +80,10 @@ sp_api::mock_impl_runtime_apis! {
 					let registration = candidate.registrations().first().unwrap().clone();
 					let cross_chain_pub_slice: [u8; 33] = registration.cross_chain_pub_key.0.try_into().unwrap();
 					let cross_chain_public: CrossChainPublic = CrossChainPublic::from(ecdsa::Public::from(cross_chain_pub_slice));
-					let aura_pub_key = AuraPublicKey(registration.keys.find(AURA).unwrap()).try_into_sr25519().unwrap();
+					// TODO: Registration data should carry Bandersnatch keys for Safrole
+					let safrole_pub_key = pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw([0u8; 32]));
 					let grandpa_pub_key = GrandpaPublicKey(registration.keys.find(GRANDPA).unwrap()).try_into_ed25519().unwrap();
-					let session_keys = (aura_pub_key, grandpa_pub_key).into();
+					let session_keys = (safrole_pub_key, grandpa_pub_key).into();
 					CommitteeMember::permissioned(cross_chain_public, session_keys)
 				}).collect();
 				Some(result)
@@ -102,7 +103,7 @@ sp_api::mock_impl_runtime_apis! {
 			Some(CommitteeMember::permissioned(
 				ecdsa::Public::from_raw(hex!("000000000000000000000000000000000000000000000000000000000000000001")).into(),
 				SessionKeys {
-					aura: sr25519::Public::default().into(),
+					safrole: pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw([0u8; 32])),
 					grandpa: ed25519::Public::default().into()
 				}
 			))

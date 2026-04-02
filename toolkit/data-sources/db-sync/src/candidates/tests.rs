@@ -352,7 +352,7 @@ fn latest_permissioned_candidates() -> Vec<PermissionedCandidateData> {
 				hex!("cb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854").to_vec(),
 			),
 			keys: CandidateKeys(vec![
-				AuraPublicKey(
+				SafrolePublicKey(
 					hex!("bf20afa1c1a72af3341fa7a447e3f9eada9f3d054a7408fb9e49ad4d6e6559ec")
 						.to_vec(),
 				)
@@ -369,7 +369,7 @@ fn latest_permissioned_candidates() -> Vec<PermissionedCandidateData> {
 				hex!("79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf").to_vec(),
 			),
 			keys: CandidateKeys(vec![
-				AuraPublicKey(
+				SafrolePublicKey(
 					hex!("56d1da82e56e4cb35b13de25f69a3e9db917f3e13d6f786321f4b0a9dc153b19")
 						.to_vec(),
 				)
@@ -396,7 +396,7 @@ fn leader_candidate_spo_a() -> CandidateRegistrations {
 					sidechain_pub_key: SidechainPublicKey(hex!("02fe8d1eb1bcb3432b1db5833ff5f2226d9cb5e65cee430558c18ed3a3c86ce1af").to_vec()),
 					cross_chain_pub_key: CrossChainPublicKey(hex!("02fe8d1eb1bcb3432b1db5833ff5f2226d9cb5e65cee430558c18ed3a3c86ce1af").to_vec()),
 					keys: CandidateKeys(vec![
-						AuraPublicKey(hex!("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").to_vec()).into(),
+						SafrolePublicKey(hex!("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").to_vec()).into(),
 						GrandpaPublicKey(hex!("88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee").to_vec()).into()
 					]),
 					utxo_info: UtxoInfo {
@@ -428,7 +428,7 @@ fn leader_candidate_spo_b() -> CandidateRegistrations {
 					sidechain_pub_key: SidechainPublicKey(hex!("02fe8d1eb1bcb3432b1db5833ff5f2226d9cb5e65cee430558c18ed3a3c86ce1af").to_vec()),
 					cross_chain_pub_key: CrossChainPublicKey(hex!("02fe8d1eb1bcb3432b1db5833ff5f2226d9cb5e65cee430558c18ed3a3c86ce1af").to_vec()),
 					keys: CandidateKeys(vec![
-						AuraPublicKey(hex!("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48").to_vec()).into(),
+						SafrolePublicKey(hex!("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48").to_vec()).into(),
 						GrandpaPublicKey(hex!("d17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69").to_vec()).into()
 					]),
 					utxo_info: UtxoInfo {
@@ -460,7 +460,7 @@ fn leader_candidate_spo_c() -> CandidateRegistrations {
 					sidechain_pub_key: SidechainPublicKey(hex!("02333e47cab242fefe88d7da1caa713307290291897f100efb911672d317147f72").to_vec()),
 					cross_chain_pub_key: CrossChainPublicKey(hex!("02333e47cab242fefe88d7da1caa713307290291897f100efb911672d317147f72").to_vec()),
 					keys: CandidateKeys(vec![
-						AuraPublicKey(hex!("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f23333").to_vec()).into(),
+						SafrolePublicKey(hex!("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f23333").to_vec()).into(),
 					    GrandpaPublicKey(hex!("d17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fad3333").to_vec()).into(),
 					]),
 					utxo_info: UtxoInfo {

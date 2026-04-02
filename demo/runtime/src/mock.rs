@@ -6,19 +6,18 @@ use frame_support::{
 	Hashable,
 	pallet_prelude::*,
 	parameter_types,
-	traits::{ConstBool, ConstU64},
+	traits::ConstU64,
 };
 use frame_system::EnsureRoot;
 use hex_literal::hex;
+use pallet_safrole::{AuthorityId as SafroleId, AuthorityPair as SafrolePair, SAFROLE_ENGINE_ID, KEY_TYPE as SAFROLE_KEY_TYPE};
 use plutus::ToDatum;
 use sidechain_domain::*;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::crypto::CryptoType;
-use sp_core::sr25519;
 use sp_core::{ByteArray, ConstU128, H256, Pair, crypto::AccountId32, ed25519};
 use sp_runtime::KeyTypeId;
-use sp_runtime::key_types::{AURA, GRANDPA};
+use sp_runtime::key_types::GRANDPA;
 use sp_runtime::{
 	BuildStorage, Digest, DigestItem, MultiSigner, impl_opaque_keys,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, OpaqueKeys},
@@ -42,7 +41,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Sidechain: pallet_sidechain,
 		SessionCommitteeManagement: pallet_session_validator_management,
-		Aura: pallet_aura,
+		Safrole: pallet_safrole,
 		Grandpa: pallet_grandpa,
 		Balances: pallet_balances,
 		PolkadotSessionStubForGrandpa: pallet_session,
@@ -105,38 +104,28 @@ impl pallet_balances::Config for Test {
 	type DoneSlashHandler = ();
 }
 
-use sp_consensus_aura::AURA_ENGINE_ID;
-
 pub const SLOTS_PER_EPOCH: u32 = 7;
 
 impl_opaque_keys! {
 	#[derive(MaxEncodedLen, PartialOrd, Ord)]
 	pub struct TestSessionKeys {
-		pub aura: Aura,
+		pub safrole: Safrole,
 		pub grandpa: Grandpa,
 	}
 }
 
 impl MaybeFromCandidateKeys for TestSessionKeys {}
 
-impl From<(sr25519::Public, ed25519::Public)> for TestSessionKeys {
-	fn from((aura, grandpa): (sr25519::Public, ed25519::Public)) -> Self {
-		let aura = AuraId::from(aura);
-		let grandpa = GrandpaId::from(grandpa);
-		Self { aura, grandpa }
-	}
-}
-
 impl TryFrom<CandidateKeys> for TestSessionKeys {
 	type Error = KeyTypeId;
 	fn try_from(value: CandidateKeys) -> Result<Self, Self::Error> {
-		let aura = <[u8; 32]>::try_from(value.find_or_empty(AURA))
-			.map_err(|_| AURA)
-			.map(|bytes| AuraId::from(sr25519::Public::from(bytes)))?;
+		let safrole = <[u8; 32]>::try_from(value.find_or_empty(SAFROLE_KEY_TYPE))
+			.map_err(|_| SAFROLE_KEY_TYPE)
+			.map(|bytes| SafroleId::from(sp_core::bandersnatch::Public::from_raw(bytes)))?;
 		let grandpa = <[u8; 32]>::try_from(value.find_or_empty(GRANDPA))
 			.map_err(|_| GRANDPA)
 			.map(|bytes| GrandpaId::from(ed25519::Public::from(bytes)))?;
-		Ok(Self { aura, grandpa })
+		Ok(Self { safrole, grandpa })
 	}
 }
 
@@ -153,9 +142,16 @@ impl pallet_partner_chains_session::Config for Test {
 	type KeyDeposit = ();
 }
 
+impl pallet_safrole::Config for Test {
+	type MaxAuthorities = ConstU32<32>;
+	type EpochLength = ConstU32<7>;
+	type SlotDuration = ConstU64<SLOT_DURATION>;
+	type TicketsPerValidator = ConstU32<2>;
+}
+
 impl pallet_sidechain::Config for Test {
 	fn current_slot_number() -> ScSlotNumber {
-		ScSlotNumber(*pallet_aura::CurrentSlot::<Test>::get())
+		ScSlotNumber(*pallet_safrole::CurrentSlot::<Test>::get())
 	}
 	type OnNewEpoch = ();
 }
@@ -197,17 +193,9 @@ impl pallet_session_validator_management::Config for Test {
 impl pallet_timestamp::Config for Test {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
-	type OnTimestampSet = Aura;
+	type OnTimestampSet = Safrole;
 	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	type WeightInfo = ();
-}
-
-impl pallet_aura::Config for Test {
-	type AuthorityId = AuraId;
-	type DisabledValidators = ();
-	type MaxAuthorities = ConstU32<32>;
-	type AllowMultipleBlocksPerSlot = ConstBool<false>;
-	type SlotDuration = ConstU64<6000>;
 }
 
 impl pallet_grandpa::Config for Test {
@@ -261,7 +249,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 pub fn slots_to_epoch(epoch: u64, slots_per_epoch: u32) -> u64 {
 	let epoch = ARBITRARY_FIRST_EPOCH + epoch;
-	let current_slot = pallet_aura::CurrentSlot::<Test>::get();
+	let current_slot = pallet_safrole::CurrentSlot::<Test>::get();
 	let to_slot = epoch * (slots_per_epoch as u64);
 	to_slot - *current_slot
 }
@@ -276,19 +264,24 @@ pub const ARBITRARY_FIRST_SLOT: u64 = 389374234;
 pub const ARBITRARY_FIRST_EPOCH: u64 = ARBITRARY_FIRST_SLOT / (SLOTS_PER_EPOCH as u64);
 
 pub fn initialize_block() {
-	let slot = *pallet_aura::CurrentSlot::<Test>::get() + 1;
+	let slot = *pallet_safrole::CurrentSlot::<Test>::get() + 1;
 	let slot = if slot == 1 { slot + ARBITRARY_FIRST_SLOT } else { slot };
 	initialize_with_slot_digest_and_increment_block_number(slot);
 
+	// In production, pallet_timestamp's OnTimestampSet drives the slot update.
+	// In test mocks we call set_slot directly since we don't inject timestamp inherents.
+	// This also triggers epoch rotation when a new epoch boundary is crossed.
+	pallet_safrole::Pallet::<Test>::set_slot(sp_consensus_slots::Slot::from(slot));
+
 	System::on_initialize(System::block_number());
-	Aura::on_initialize(System::block_number());
+	Safrole::on_initialize(System::block_number());
 	Grandpa::on_initialize(System::block_number());
 	SessionCommitteeManagement::on_initialize(System::block_number());
 	Session::on_initialize(System::block_number());
 
 	let block_number = System::block_number();
 	let epoch = Sidechain::current_epoch_number();
-	assert_eq!(slot, *pallet_aura::CurrentSlot::<Test>::get());
+	assert_eq!(slot, *pallet_safrole::CurrentSlot::<Test>::get());
 	println!("(slot {slot}, epoch {epoch}) Initialized block {block_number}");
 }
 
@@ -297,7 +290,7 @@ pub fn finalize_block() {
 		Session::on_finalize(System::block_number());
 		SessionCommitteeManagement::on_finalize(System::block_number());
 		Grandpa::on_finalize(System::block_number());
-		Aura::on_finalize(System::block_number());
+		Safrole::on_finalize(System::block_number());
 		System::on_finalize(System::block_number());
 	}
 }
@@ -395,19 +388,19 @@ const BOB_SEED: &str = "//2";
 #[derive(Clone)]
 pub struct TestKeys {
 	pub cross_chain: CrossChainPair,
-	pub aura: sp_consensus_aura::sr25519::AuthorityPair,
+	pub safrole: SafrolePair,
 	pub grandpa: sp_consensus_grandpa::AuthorityPair,
 }
 
 impl TestKeys {
 	pub fn from_seed(s: &str) -> Self {
-		Self { cross_chain: pair_from_seed(s), aura: pair_from_seed(s), grandpa: pair_from_seed(s) }
+		Self { cross_chain: pair_from_seed(s), safrole: pair_from_seed(s), grandpa: pair_from_seed(s) }
 	}
 	pub fn account(&self) -> AccountId32 {
 		MultiSigner::from(sp_core::ecdsa::Public::from(self.cross_chain.public())).into_account()
 	}
 	pub fn session(&self) -> TestSessionKeys {
-		TestSessionKeys { aura: self.aura.public(), grandpa: self.grandpa.public() }
+		TestSessionKeys { safrole: self.safrole.public(), grandpa: self.grandpa.public() }
 	}
 	pub fn candidate_keys(&self) -> CandidateKeys {
 		CandidateKeys(
@@ -434,7 +427,7 @@ pub fn bob() -> TestKeys {
 
 fn initialize_with_slot_digest_and_increment_block_number(slot_number: u64) {
 	let slot = sp_consensus_slots::Slot::from(slot_number);
-	let pre_digest = Digest { logs: vec![DigestItem::PreRuntime(AURA_ENGINE_ID, slot.encode())] };
+	let pre_digest = Digest { logs: vec![DigestItem::PreRuntime(SAFROLE_ENGINE_ID, slot.encode())] };
 
 	System::reset_events();
 	System::initialize(&(System::block_number() + 1), &System::parent_hash(), &pre_digest);
@@ -468,14 +461,14 @@ macro_rules! assert_grandpa_authorities {
 }
 pub(crate) use assert_grandpa_authorities;
 
-macro_rules! assert_aura_authorities {
+macro_rules! assert_session_authorities {
     ([$($member:expr),*]) => {{
-		let expected_authorities = vec![$($member.aura.public()),*];
-		let actual_authorities = pallet_aura::Authorities::<Test>::get();
+		let expected_authorities = vec![$($member.safrole.public()),*];
+		let actual_authorities = pallet_safrole::Authorities::<Test>::get();
 		assert_eq!(actual_authorities, expected_authorities);
 	}};
 }
-pub(crate) use assert_aura_authorities;
+pub(crate) use assert_session_authorities;
 use pallet_session_validator_management::session_manager::ValidatorManagementSessionManager;
 use sidechain_slots::SlotsPerEpoch;
 use sp_session_validator_management::MainChainScripts;

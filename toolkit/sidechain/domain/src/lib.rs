@@ -29,7 +29,6 @@ use derive_more::{From, Into};
 use num_derive::*;
 use parity_scale_codec::{
 	Compact, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen, WrapperTypeEncode,
-	decode_vec_with_len,
 };
 use plutus_datum_derive::*;
 use scale_info::TypeInfo;
@@ -38,9 +37,9 @@ use sp_core::{
 	bounded::BoundedVec,
 	crypto::{
 		KeyTypeId,
-		key_types::{AURA, GRANDPA},
+		key_types::GRANDPA,
 	},
-	ecdsa, ed25519, sr25519,
+	ecdsa, ed25519,
 };
 #[cfg(feature = "serde")]
 use {
@@ -1085,28 +1084,27 @@ impl CandidateRegistrations {
 	}
 }
 
-/// Sr25519 public key used by Aura consensus algorithm. Not validated
+/// Bandersnatch public key used by Safrole block production. Not validated.
+/// Previously `SafrolePublicKey` (sr25519); now carries a 32-byte Bandersnatch key.
 #[derive(
 	Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo, PartialOrd, Ord, Hash,
 )]
 #[byte_string(debug, hex_serialize, hex_deserialize, decode_hex)]
-pub struct AuraPublicKey(pub Vec<u8>);
-impl AuraPublicKey {
-	/// Attempts to cast this public key to a valid [sr25519::Public]
-	pub fn try_into_sr25519(&self) -> Option<sr25519::Public> {
-		Some(sr25519::Public::from_raw(self.0.clone().try_into().ok()?))
+pub struct SafrolePublicKey(pub Vec<u8>);
+
+/// Key type ID for Safrole keys in CandidateKeys.
+pub const SAFROLE_KEY_TYPE: KeyTypeId = KeyTypeId(*b"safr");
+
+impl SafrolePublicKey {
+	/// Attempts to cast this public key to a valid 32-byte Bandersnatch public key.
+	pub fn try_into_bandersnatch_bytes(&self) -> Option<[u8; 32]> {
+		self.0.clone().try_into().ok()
 	}
 }
 
-impl From<sr25519::Public> for AuraPublicKey {
-	fn from(value: sr25519::Public) -> Self {
-		Self(value.0.to_vec())
-	}
-}
-
-impl From<AuraPublicKey> for CandidateKey {
-	fn from(value: AuraPublicKey) -> Self {
-		Self { id: AURA.0, bytes: value.0 }
+impl From<SafrolePublicKey> for CandidateKey {
+	fn from(value: SafrolePublicKey) -> Self {
+		Self { id: SAFROLE_KEY_TYPE.0, bytes: value.0 }
 	}
 }
 
@@ -1234,9 +1232,11 @@ impl CandidateKeys {
 		self.find(id).unwrap_or_default()
 	}
 
-	/// True for keys that are only AURA and Grandpa
-	pub fn has_only_aura_and_grandpa_keys(&self) -> bool {
-		self.0.len() == 2 && self.find(AURA).is_some() && self.find(GRANDPA).is_some()
+	/// True for keys that are only Safrole and Grandpa
+	pub fn has_only_safrole_and_grandpa_keys(&self) -> bool {
+		self.0.len() == 2
+			&& self.find(SAFROLE_KEY_TYPE).is_some()
+			&& self.find(GRANDPA).is_some()
 	}
 }
 
@@ -1246,53 +1246,28 @@ impl From<Vec<([u8; 4], Vec<u8>)>> for CandidateKeys {
 	}
 }
 
-/// Backward compatible [Encode] for [CandidateKeys].
-/// After node update InherentData would be encoded with this version but runtime would still know [PermissionedCandidateData] and [CandidateRegistration]
-/// that have [AuraPublicKey] and [GrandpaPublicKey] fields instead of [CandidateKeys] field.
-/// To support existing chains, when keys are AURA and Grandpa, [CandidateKeys] is encoded exactly like in previous version.
-/// If other key set is used in the place where AURA vector lenght is encoded, Compact(u32::MAX) is encoded to enable discrimination between the types that
-/// has to be decoded.
-/// The represtation is either:
-/// Legacy: AuraKeySize, AuraKeyBytes, GrandpaKeySize, GrandpaKeyBytes
-/// Generic: u32::MAX, CandidateKeysVector
-/// AuraKeySize cannot be u32::MAX (won't fit on Cardano), so when it is encountered, we know that the generic representation is used.
+/// [CandidateKeys] encoding: u32::MAX discriminator followed by the key vector.
 impl Encode for CandidateKeys {
 	fn size_hint(&self) -> usize {
-		if self.has_only_aura_and_grandpa_keys() {
-			Encode::size_hint(&AuraPublicKey(self.find_or_empty(AURA)))
-				.saturating_add(Encode::size_hint(&GrandpaPublicKey(self.find_or_empty(GRANDPA))))
-		} else {
-			Encode::size_hint(&Compact(u32::MAX)).saturating_add(Encode::size_hint(&self.0))
-		}
+		Encode::size_hint(&Compact(u32::MAX)).saturating_add(Encode::size_hint(&self.0))
 	}
 
 	fn encode_to<T: parity_scale_codec::Output + ?Sized>(&self, dest: &mut T) {
-		if self.has_only_aura_and_grandpa_keys() {
-			Encode::encode_to(&AuraPublicKey(self.find_or_empty(AURA)), dest);
-			Encode::encode_to(&GrandpaPublicKey(self.find_or_empty(GRANDPA)), dest)
-		} else {
-			// Compact(u32::MAX) is used to signal that a vector of CandidateKey should be decoded
-			// It has to be this type, be it is the item that AuraPublicKey::decode expects.
-			Encode::encode_to(&Compact(u32::MAX), dest);
-			Encode::encode_to(&self.0, dest)
-		}
+		Encode::encode_to(&Compact(u32::MAX), dest);
+		Encode::encode_to(&self.0, dest)
 	}
 }
 
-/// Custom backward compatibile Decode. See comment on the Encode implementation.
 impl Decode for CandidateKeys {
 	fn decode<I: parity_scale_codec::Input>(
 		input: &mut I,
 	) -> Result<Self, parity_scale_codec::Error> {
-		// See Encode instance
-		let marker_or_aura_size: u32 = <Compact<u32>>::decode(input)?.0;
-		if marker_or_aura_size == u32::MAX {
+		let marker: u32 = <Compact<u32>>::decode(input)?.0;
+		if marker == u32::MAX {
 			let keys = Vec::<CandidateKey>::decode(input)?;
 			Ok(Self(keys))
 		} else {
-			let aura_bytes: Vec<u8> = decode_vec_with_len(input, marker_or_aura_size as usize)?;
-			let grandpa = GrandpaPublicKey::decode(input)?;
-			Ok(Self(vec![AuraPublicKey(aura_bytes).into(), grandpa.into()]))
+			Err("Legacy Aura+Grandpa CandidateKeys encoding not supported".into())
 		}
 	}
 }
@@ -1340,7 +1315,7 @@ impl FromStr for PermissionedCandidateData {
 			alloc::boxed::Box<dyn core::error::Error + Send + Sync>,
 		> {
 			let line = line.replace("0x", "");
-			if let [sidechain_pub_key, aura_pub_key, grandpa_pub_key] =
+			if let [sidechain_pub_key, safrole_pub_key, grandpa_pub_key] =
 				line.split(":").collect::<Vec<_>>()[..]
 			{
 				Ok(PermissionedCandidateData {
@@ -1348,7 +1323,7 @@ impl FromStr for PermissionedCandidateData {
 						hex::decode(sidechain_pub_key).map_err(|e| e.to_string())?,
 					),
 					keys: CandidateKeys(vec![
-						AuraPublicKey(hex::decode(aura_pub_key).map_err(|e| e.to_string())?).into(),
+						SafrolePublicKey(hex::decode(safrole_pub_key).map_err(|e| e.to_string())?).into(),
 						GrandpaPublicKey(hex::decode(grandpa_pub_key).map_err(|e| e.to_string())?)
 							.into(),
 					]),
@@ -1614,7 +1589,7 @@ mod tests {
 		let keys = TestCandidateKeys {
 			field_before: Some(42),
 			keys: CandidateKeys(vec![
-				AuraPublicKey([7u8; 32].to_vec()).into(),
+				SafrolePublicKey([7u8; 32].to_vec()).into(),
 				GrandpaPublicKey([9u8; 32].to_vec()).into(),
 			]),
 			field_after: Some(15),

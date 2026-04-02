@@ -33,10 +33,11 @@ sc-service = { workspace = true }
 sc-telemetry = { workspace = true }
 sc-transaction-pool = { workspace = true }
 sc-transaction-pool-api = { workspace = true }
-sc-consensus-aura = { workspace = true }
-sc-partner-chains-consensus-aura = { workspace = true }
-sp-consensus-aura = { workspace = true }
-sp-partner-chains-consensus-aura = { workspace = true }
+pallet-safrole = { workspace = true }
+sc-partner-chains-consensus-safrole = { workspace = true }
+sp-partner-chains-consensus-common = { workspace = true }
+sc-consensus-slots = { workspace = true }
+sp-consensus-slots = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
 sc-consensus-grandpa-rpc = { workspace = true }

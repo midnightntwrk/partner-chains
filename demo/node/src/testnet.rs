@@ -1,7 +1,7 @@
 use crate::chain_spec::*;
 use authority_selection_inherents::CommitteeMember;
 use partner_chains_demo_runtime::{
-	AccountId, AuraConfig, BalancesConfig, BridgeConfig, GovernedMapConfig, GrandpaConfig,
+	AccountId, BalancesConfig, BridgeConfig, GovernedMapConfig, GrandpaConfig,
 	RuntimeGenesisConfig, SessionCommitteeManagementConfig, SessionConfig, SidechainConfig,
 	SudoConfig, SystemConfig, TestHelperPalletConfig,
 };
@@ -9,20 +9,22 @@ use sc_service::ChainType;
 use sidechain_domain::*;
 use sidechain_slots::SlotsPerEpoch;
 use sp_core::bytes::from_hex;
-use sp_core::{ed25519, sr25519};
+use sp_core::{bandersnatch, ed25519, sr25519};
 use std::str::FromStr;
 
 pub fn authority_keys(
-	aura_pub_key: &str,
+	safrole_pub_key: &str,
 	grandpa_pub_key: &str,
 	sidechain_pub_key: &str,
 ) -> AuthorityKeys {
-	let aura_pk = sr25519::Public::from_raw(from_hex(aura_pub_key).unwrap().try_into().unwrap());
-	let granda_pk =
+	let safrole_pk = pallet_safrole::AuthorityId::from(
+		bandersnatch::Public::from_raw(from_hex(safrole_pub_key).unwrap().try_into().unwrap()),
+	);
+	let grandpa_pk =
 		ed25519::Public::from_raw(from_hex(grandpa_pub_key).unwrap().try_into().unwrap());
 	let sidechain_pk = sidechain_domain::SidechainPublicKey(from_hex(sidechain_pub_key).unwrap());
 
-	let session_keys = (aura_pk, granda_pk).into();
+	let session_keys = (safrole_pk, grandpa_pk).into();
 	AuthorityKeys { session: session_keys, cross_chain: sidechain_pk.try_into().unwrap() }
 }
 
@@ -174,7 +176,7 @@ pub fn testnet_genesis(
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
 			dev_accounts: None,
 		},
-		aura: AuraConfig { authorities: vec![] },
+		safrole: pallet_safrole::GenesisConfig::default(),
 		grandpa: GrandpaConfig { authorities: vec![], ..Default::default() },
 		sudo: SudoConfig {
 			// Assign network admin rights.

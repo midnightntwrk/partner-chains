@@ -6680,22 +6680,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-aura"
-version = "45.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable2603#2e4dd0bc22366a5af820492528869a493b5a5208"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-timestamp",
- "parity-scale-codec",
- "scale-info",
- "sp-application-crypto",
- "sp-consensus-aura",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-authorship"
 version = "46.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable2603#2e4dd0bc22366a5af820492528869a493b5a5208"
@@ -6918,6 +6902,24 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-safrole"
+version = "1.8.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-consensus-slots",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]
@@ -7381,6 +7383,7 @@ dependencies = [
  "log",
  "pallet-block-producer-fees-rpc",
  "pallet-block-producer-metadata-rpc",
+ "pallet-safrole",
  "pallet-session-validator-management-rpc",
  "pallet-sidechain-rpc",
  "pallet-transaction-payment-rpc",
@@ -7394,12 +7397,12 @@ dependencies = [
  "sc-client-api",
  "sc-client-db",
  "sc-consensus",
- "sc-consensus-aura",
  "sc-consensus-grandpa",
  "sc-consensus-grandpa-rpc",
+ "sc-consensus-slots",
  "sc-executor",
  "sc-network",
- "sc-partner-chains-consensus-aura",
+ "sc-partner-chains-consensus-safrole",
  "sc-rpc",
  "sc-service",
  "sc-telemetry",
@@ -7416,13 +7419,13 @@ dependencies = [
  "sp-block-producer-metadata",
  "sp-block-production-log",
  "sp-blockchain",
- "sp-consensus-aura",
+ "sp-consensus-slots",
  "sp-core",
  "sp-governed-map",
  "sp-inherents",
  "sp-io",
  "sp-partner-chains-bridge",
- "sp-partner-chains-consensus-aura",
+ "sp-partner-chains-consensus-common",
  "sp-runtime",
  "sp-session-validator-management",
  "sp-session-validator-management-query",
@@ -7451,7 +7454,6 @@ dependencies = [
  "log",
  "minicbor 2.2.1",
  "pallet-address-associations",
- "pallet-aura",
  "pallet-balances",
  "pallet-block-participation",
  "pallet-block-producer-fees",
@@ -7461,6 +7463,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-partner-chains-bridge",
  "pallet-partner-chains-session",
+ "pallet-safrole",
  "pallet-session",
  "pallet-session-validator-management",
  "pallet-sidechain",
@@ -7481,7 +7484,6 @@ dependencies = [
  "sp-block-producer-fees",
  "sp-block-producer-metadata",
  "sp-block-production-log",
- "sp-consensus-aura",
  "sp-consensus-grandpa",
  "sp-consensus-slots",
  "sp-core",
@@ -9834,6 +9836,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "sc-partner-chains-consensus-safrole"
+version = "1.8.1"
+dependencies = [
+ "async-trait",
+ "futures",
+ "log",
+ "pallet-safrole",
+ "parity-scale-codec",
+ "sc-client-api",
+ "sc-consensus",
+ "sc-consensus-slots",
+ "sc-telemetry",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-slots",
+ "sp-core",
+ "sp-inherents",
+ "sp-keystore",
+ "sp-partner-chains-consensus-common",
+ "sp-runtime",
+ "substrate-prometheus-endpoint",
+]
+
+[[package]]
 name = "sc-proposer-metrics"
 version = "0.20.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable2603#2e4dd0bc22366a5af820492528869a493b5a5208"
@@ -11417,6 +11446,19 @@ dependencies = [
 
 [[package]]
 name = "sp-partner-chains-consensus-aura"
+version = "1.8.1"
+dependencies = [
+ "futures",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-slots",
+ "sp-inherents",
+ "sp-partner-chains-consensus-common",
+ "sp-runtime",
+]
+
+[[package]]
+name = "sp-partner-chains-consensus-common"
 version = "1.8.1"
 dependencies = [
  "futures",

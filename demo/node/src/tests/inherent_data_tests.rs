@@ -15,7 +15,7 @@ use sidechain_domain::{
 };
 use sidechain_mc_hash::mock::MockMcHashDataSource;
 use sp_block_participation::BlockProductionData;
-use sp_consensus_aura::Slot;
+use sp_consensus_slots::Slot;
 use sp_core::ecdsa;
 use sp_inherents::CreateInherentDataProviders;
 use sp_inherents::{InherentData, InherentDataProvider};
@@ -59,12 +59,8 @@ async fn block_proposal_cidp_should_be_created_correctly() {
 	let mut inherent_data = InherentData::new();
 	inherent_data_providers.provide_inherent_data(&mut inherent_data).await.unwrap();
 
-	assert_eq!(
-		inherent_data
-			.get_data::<Slot>(&sp_consensus_aura::inherents::INHERENT_IDENTIFIER)
-			.unwrap(),
-		Some(Slot::from(30))
-	);
+	// Slot is no longer an inherent (reaches pallet_safrole via pallet_timestamp's OnTimestampSet).
+	// Verify the timestamp inherent is present, which is what drives the slot.
 	assert_eq!(
 		inherent_data.get_data::<Timestamp>(&sp_timestamp::INHERENT_IDENTIFIER).unwrap(),
 		Some(Timestamp::new(

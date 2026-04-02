@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo update:*)",
+      "Bash(curl -s \"https://crates.io/api/v1/crates/cardano-serialization-lib/15.0.3/dependencies\")",
+      "Bash(curl -s \"https://crates.io/api/v1/crates/cardano-serialization-lib/14.1.2/dependencies\")",
+      "Bash(curl -s \"https://crates.io/api/v1/crates/cardano-serialization-lib/versions\")",
+      "Bash(python3 -c \"import sys,json; vs=json.load\\(sys.stdin\\)[''''versions'''']; [print\\(v[''''num'''']\\) for v in vs[:20]]\")",
+      "Bash(gh api:*)",
+      "Bash(find /Users/gilescope/git/midnightntwrk/partner-chains -type f \\\\\\( -name \"*.toml\" -o -name \"*.rs\" \\\\\\) -path \"*/substrate-extensions/*\" ! -path \"*/target/*\" -exec basename {} \\\\;)",
+      "Bash(find:*)"
+    ]
+  }
+}

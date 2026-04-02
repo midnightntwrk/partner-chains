@@ -20,7 +20,7 @@ use frame_support::inherent::ProvideInherent;
 use frame_support::weights::constants::RocksDbWeight as RuntimeDbWeight;
 use frame_support::{
 	BoundedVec, construct_runtime, parameter_types,
-	traits::{ConstBool, ConstU8, ConstU16, ConstU32, ConstU64, ConstU128},
+	traits::{ConstU8, ConstU16, ConstU32, ConstU64, ConstU128},
 	weights::{IdentityFee, constants::WEIGHT_REF_TIME_PER_SECOND},
 };
 use frame_system::EnsureRoot;
@@ -40,7 +40,7 @@ use sidechain_domain::{
 use sidechain_slots::Slot;
 use sp_api::impl_runtime_apis;
 use sp_block_participation::AsCardanoSPO;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+// AuraId removed — Safrole uses Bandersnatch keys via pallet_safrole::AuthorityId
 #[cfg(feature = "runtime-benchmarks")]
 use sp_core::ByteArray;
 use sp_core::{OpaqueMetadata, crypto::KeyTypeId};
@@ -101,7 +101,7 @@ pub mod opaque {
 	use super::*;
 	use authority_selection_inherents::MaybeFromCandidateKeys;
 	use parity_scale_codec::MaxEncodedLen;
-	use sp_core::{ed25519, sr25519};
+	use sp_core::ed25519;
 	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
 	/// Opaque block header type.
@@ -162,13 +162,13 @@ pub mod opaque {
 	impl_opaque_keys! {
 		#[derive(MaxEncodedLen, PartialOrd, Ord)]
 		pub struct SessionKeys {
-			pub aura: Aura,
+			pub safrole: Safrole,
 			pub grandpa: Grandpa,
 		}
 	}
-	impl From<(sr25519::Public, ed25519::Public)> for SessionKeys {
-		fn from((aura, grandpa): (sr25519::Public, ed25519::Public)) -> Self {
-			Self { aura: aura.into(), grandpa: grandpa.into() }
+	impl From<(pallet_safrole::AuthorityId, ed25519::Public)> for SessionKeys {
+		fn from((safrole, grandpa): (pallet_safrole::AuthorityId, ed25519::Public)) -> Self {
+			Self { safrole, grandpa: grandpa.into() }
 		}
 	}
 
@@ -205,7 +205,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
 /// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
-/// up by `pallet_aura` to implement `fn slot_duration()`.
+/// up by `pallet_safrole` to implement `fn slot_duration()`.
 ///
 /// Change this to adjust the block time.
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
@@ -297,12 +297,11 @@ impl frame_system::Config for Runtime {
 	type PostTransactions = ();
 }
 
-impl pallet_aura::Config for Runtime {
-	type AuthorityId = AuraId;
-	type DisabledValidators = ();
+impl pallet_safrole::Config for Runtime {
 	type MaxAuthorities = MaxValidators;
-	type AllowMultipleBlocksPerSlot = ConstBool<false>;
+	type EpochLength = ConstU32<60>;
 	type SlotDuration = ConstU64<SLOT_DURATION>;
+	type TicketsPerValidator = ConstU32<2>;
 }
 
 pallet_partner_chains_session::impl_pallet_session_config!(Runtime);
@@ -322,7 +321,7 @@ impl pallet_grandpa::Config for Runtime {
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
-	type OnTimestampSet = Aura;
+	type OnTimestampSet = Safrole;
 	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
@@ -420,7 +419,7 @@ parameter_types! {
 
 impl pallet_sidechain::Config for Runtime {
 	fn current_slot_number() -> ScSlotNumber {
-		ScSlotNumber(*pallet_aura::CurrentSlot::<Self>::get())
+		ScSlotNumber(*pallet_safrole::CurrentSlot::<Self>::get())
 	}
 	type OnNewEpoch = TestHelperPallet;
 }
@@ -555,7 +554,7 @@ impl pallet_block_production_log::Config for Runtime {
 	type WeightInfo = pallet_block_production_log::weights::SubstrateWeight<Runtime>;
 
 	fn current_slot() -> sp_consensus_slots::Slot {
-		let slot: u64 = pallet_aura::CurrentSlot::<Runtime>::get().into();
+		let slot: u64 = pallet_safrole::CurrentSlot::<Runtime>::get().into();
 		sp_consensus_slots::Slot::from(slot)
 	}
 
@@ -600,7 +599,7 @@ impl pallet_block_producer_fees::Config for Runtime {
 	type HistoricalChangesPerProducer = ConstU16<5>;
 
 	fn current_slot() -> sp_consensus_slots::Slot {
-		let slot: u64 = pallet_aura::CurrentSlot::<Runtime>::get().into();
+		let slot: u64 = pallet_safrole::CurrentSlot::<Runtime>::get().into();
 		sp_consensus_slots::Slot::from(slot)
 	}
 
@@ -700,13 +699,13 @@ construct_runtime!(
 	pub struct Runtime {
 		System: frame_system,
 		Timestamp: pallet_timestamp,
-		Aura: pallet_aura,
+		Safrole: pallet_safrole,
 		Grandpa: pallet_grandpa,
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 		// Custom Pallets
-		// Sidechain pallet must come after the Aura pallet, since it gets the slot number from it
+		// Sidechain pallet must come after the Safrole pallet, since it gets the slot number from it
 		Sidechain: pallet_sidechain,
 		SessionCommitteeManagement: pallet_session_validator_management,
 		AddressAssociations: pallet_address_associations,
@@ -858,13 +857,25 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-		fn slot_duration() -> sp_consensus_aura::SlotDuration {
-			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
+	impl pallet_safrole::SafroleApi<Block> for Runtime {
+		fn slot_duration() -> sp_consensus_slots::SlotDuration {
+			sp_consensus_slots::SlotDuration::from_millis(Safrole::slot_duration())
 		}
 
-		fn authorities() -> Vec<AuraId> {
-			pallet_aura::Authorities::<Runtime>::get().into_inner()
+		fn authorities() -> Vec<pallet_safrole::AuthorityId> {
+			pallet_safrole::Authorities::<Runtime>::get().into_inner()
+		}
+
+		fn epoch_tickets() -> Option<Vec<pallet_safrole::Ticket>> {
+			pallet_safrole::EpochTickets::<Runtime>::get().map(|v| v.into_inner())
+		}
+
+		fn is_fallback_mode() -> bool {
+			pallet_safrole::InFallbackMode::<Runtime>::get()
+		}
+
+		fn epoch_randomness() -> [u8; 32] {
+			pallet_safrole::EpochRandomness::<Runtime>::get()
 		}
 	}
 
@@ -1041,7 +1052,7 @@ impl_runtime_apis! {
 		fn get_sidechain_status() -> SidechainStatus {
 			SidechainStatus {
 				epoch: Sidechain::current_epoch_number(),
-				slot: ScSlotNumber(*pallet_aura::CurrentSlot::<Runtime>::get()),
+				slot: ScSlotNumber(*pallet_safrole::CurrentSlot::<Runtime>::get()),
 				slots_per_epoch: Sidechain::slots_per_epoch().0,
 			}
 		}
@@ -1051,7 +1062,7 @@ impl_runtime_apis! {
 		fn slot_config() -> sidechain_slots::ScSlotConfig {
 			sidechain_slots::ScSlotConfig {
 				slots_per_epoch: Sidechain::slots_per_epoch(),
-				slot_duration: <Self as sp_consensus_aura::runtime_decl_for_aura_api::AuraApi<Block, AuraId>>::slot_duration()
+				slot_duration: <Self as pallet_safrole::runtime_decl_for_safrole_api::SafroleApi<Block>>::slot_duration()
 			}
 		}
 	}
@@ -1251,34 +1262,34 @@ mod tests {
 
 	// The set committee takes effect next session. Committee can be set for 1 session in advance.
 	#[test]
-	fn check_aura_authorities_rotation() {
+	fn check_session_authorities_rotation() {
 		new_test_ext().execute_with(|| {
 			advance_block();
 			set_committee_through_inherent_data(&[alice()]);
 			until_epoch(1, &|| {
 				assert_current_epoch!(0);
-				assert_aura_authorities!([alice(), bob()]);
+				assert_session_authorities!([alice(), bob()]);
 			});
 
 			for_next_n_blocks(SLOTS_PER_EPOCH, &|| {
 				assert_current_epoch!(1);
-				assert_aura_authorities!([alice()]);
+				assert_session_authorities!([alice()]);
 			});
 
 			// Authorities can be set as late as in the first block of new epoch, but it makes session last 1 block longer
 			set_committee_through_inherent_data(&[bob()]);
 			assert_current_epoch!(2);
-			assert_aura_authorities!([alice()]);
+			assert_session_authorities!([alice()]);
 			advance_block();
 			set_committee_through_inherent_data(&[alice(), bob()]);
 			for_next_n_blocks(SLOTS_PER_EPOCH - 1, &|| {
 				assert_current_epoch!(2);
-				assert_aura_authorities!([bob()]);
+				assert_session_authorities!([bob()]);
 			});
 
 			set_committee_through_inherent_data(&[alice(), bob()]);
 			for_next_n_blocks(SLOTS_PER_EPOCH * 3, &|| {
-				assert_aura_authorities!([alice(), bob()]);
+				assert_session_authorities!([alice(), bob()]);
 			});
 		});
 	}
@@ -1312,7 +1323,7 @@ mod tests {
 		expected_authorities: &[TestKeys],
 	) -> PostDispatchInfo {
 		let epoch = Sidechain::current_epoch_number();
-		let slot = *pallet_aura::CurrentSlot::<Test>::get();
+		let slot = *pallet_safrole::CurrentSlot::<Test>::get();
 		println!(
 			"(slot {slot}, epoch {epoch}) Setting {} authorities for next epoch",
 			expected_authorities.len()

@@ -181,7 +181,7 @@ impl<'de> Deserialize<'de> for PermissionedCandidateKeys {
 #[serde(untagged)]
 enum CandidateKeysFormat {
 	V1 { partner_chains_key: ByteString, keys: BTreeMap<String, ByteString> },
-	V0 { sidechain_pub_key: ByteString, aura_pub_key: ByteString, grandpa_pub_key: ByteString },
+	V0 { sidechain_pub_key: ByteString, safrole_pub_key: ByteString, grandpa_pub_key: ByteString },
 }
 
 impl From<CandidateKeysFormat> for PermissionedCandidateKeys {
@@ -190,9 +190,9 @@ impl From<CandidateKeysFormat> for PermissionedCandidateKeys {
 			CandidateKeysFormat::V1 { partner_chains_key, keys } => {
 				Self { partner_chains_key, keys }
 			},
-			CandidateKeysFormat::V0 { sidechain_pub_key, aura_pub_key, grandpa_pub_key } => Self {
+			CandidateKeysFormat::V0 { sidechain_pub_key, safrole_pub_key, grandpa_pub_key } => Self {
 				partner_chains_key: sidechain_pub_key,
-				keys: vec![("aura".to_owned(), aura_pub_key), ("gran".to_owned(), grandpa_pub_key)]
+				keys: vec![("safr".to_owned(), safrole_pub_key), ("gran".to_owned(), grandpa_pub_key)]
 					.into_iter()
 					.collect(),
 			},
@@ -226,7 +226,7 @@ mod tests {
 	fn v0_deserialization() {
 		let deserialized: PermissionedCandidateKeys = serde_json::from_value(serde_json::json!({
 			"sidechain_pub_key": "0x0101",
-			"aura_pub_key": "0x0202",
+			"safrole_pub_key": "0x0202",
 			"grandpa_pub_key": "0x0303"
 		}))
 		.unwrap();
@@ -235,7 +235,7 @@ mod tests {
 			PermissionedCandidateKeys {
 				partner_chains_key: ByteString::from_hex_unsafe("0x0101"),
 				keys: vec![
-					("aura".to_owned(), ByteString::from_hex_unsafe("0x0202")),
+					("safr".to_owned(), ByteString::from_hex_unsafe("0x0202")),
 					("gran".to_owned(), ByteString::from_hex_unsafe("0x0303")),
 				]
 				.into_iter()
