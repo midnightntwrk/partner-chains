@@ -371,6 +371,34 @@ pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as 
 		task_manager
 			.spawn_essential_handle()
 			.spawn_blocking("safrole", Some("block-authoring"), safrole);
+
+		// Spawn ticket generation worker — generates ring-VRF tickets at epoch boundaries.
+		let ticket_extrinsic_builder: sc_partner_chains_consensus_safrole::ticket_worker::TicketExtrinsicBuilder =
+			Arc::new(|envelope| {
+				use sp_runtime::codec::Encode as _;
+				let call = partner_chains_demo_runtime::RuntimeCall::Safrole(
+					pallet_safrole::Call::submit_ticket {
+						envelope: Box::new(envelope),
+					},
+				);
+				partner_chains_demo_runtime::UncheckedExtrinsic::new_bare(call).encode()
+			});
+
+		let ticket_worker = sc_partner_chains_consensus_safrole::ticket_worker::run_ticket_worker::<
+			Block,
+			_,
+			_,
+		>(
+			client.clone(),
+			transaction_pool.clone(),
+			keystore_container.keystore(),
+			partner_chains_demo_runtime::SLOT_DURATION,
+			ticket_extrinsic_builder,
+		);
+
+		task_manager
+			.spawn_essential_handle()
+			.spawn_blocking("safrole-tickets", Some("block-authoring"), ticket_worker);
 	}
 
 	if enable_grandpa {

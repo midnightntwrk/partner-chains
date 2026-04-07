@@ -1,0 +1,43 @@
+[package]
+name = "pallet-grandpa-weights"
+version.workspace = true
+description = "Injects stake-proportional weights into pallet-grandpa authorities"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license = "Unlicense"
+publish = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[lints]
+workspace = true
+
+[dependencies]
+parity-scale-codec = { workspace = true }
+scale-info = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-consensus-grandpa = { workspace = true }
+pallet-grandpa = { workspace = true }
+sp-std = { workspace = true }
+log = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-consensus-grandpa/std",
+	"pallet-grandpa/std",
+	"sp-std/std",
+	"log/std",
+]
+try-runtime = ["frame-support/try-runtime"]
+
+[lib]
+doctest = false

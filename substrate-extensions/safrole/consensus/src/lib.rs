@@ -6,6 +6,7 @@
 //! mainchain hash data in block headers.
 
 pub mod import_queue;
+pub mod ticket_worker;
 
 use futures::prelude::*;
 use log::{debug, warn};
@@ -365,6 +366,7 @@ where
 impl<B, C, E, I, SO, L, BS, ID> SafroleWorker<B, C, E, I, SO, L, BS, ID>
 where
 	B: BlockT,
+	C: AuxStore,
 {
 	/// Claim a slot in fallback mode (no tickets).
 	/// Uses deterministic VRF-based assignment: hash(randomness || slot) selects an authority.
@@ -420,7 +422,8 @@ where
 	}
 
 	/// Claim a slot in ticket mode.
-	/// Checks if any ticket in the epoch's assignment is ours.
+	/// Uses aux-DB for O(1) lookup of ticket ownership, falling back to
+	/// brute-force if no mapping is found.
 	fn claim_slot_ticket(
 		&self,
 		slot: Slot,
@@ -428,9 +431,6 @@ where
 	) -> Option<SafroleClaim> {
 		let tickets = aux.epoch_tickets.as_ref()?;
 
-		// Determine which slot index within the epoch this is.
-		// For now, use slot modulo epoch length (will be refined when
-		// the epoch length is available from runtime API).
 		let epoch_length = tickets.len();
 		if epoch_length == 0 {
 			return None;
@@ -438,33 +438,64 @@ where
 		let slot_in_epoch = (*slot as usize) % epoch_length;
 		let ticket = tickets.get(slot_in_epoch)?;
 
-		// The ticket is anonymous — we need to check if we generated it.
-		// We do this by trying each local key: compute VRF(key, ticket_input)
-		// and see if it matches the ticket id.
-		//
-		// TODO: Optimise by maintaining a local aux-db mapping of
-		// (epoch, ticket_id) -> local_key_index, populated when tickets are
-		// submitted. For now, brute-force over local keys.
+		// O(1) lookup: check aux-DB for ticket→authority mapping.
+		// Try fast path: aux-DB lookup populated by ticket worker.
+		// Epoch index = slot / epoch_length (same formula as pallet_safrole::set_slot).
+		let epoch_index = *slot / epoch_length as u64;
+		if let Some(auth_idx) = ticket_worker::lookup_ticket_owner(
+			self.client.as_ref(),
+			epoch_index,
+			&ticket.id,
+		) {
+			if let Some(authority) = aux.authorities.get(auth_idx as usize) {
+				let raw_auth = to_raw_public(authority);
+				if self.keystore.has_keys(&[(raw_auth.to_raw_vec(), KEY_TYPE)]) {
+					// Create seal VRF signature.
+					let vrf_input_data = [
+						b"jam_ticket_seal".as_slice(),
+						&aux.epoch_randomness,
+						&(*slot).to_le_bytes(),
+					]
+					.concat();
+					let vrf_sign_data =
+						bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
+
+					if let Ok(Some(vrf_signature)) =
+						self.keystore.bandersnatch_vrf_sign(KEY_TYPE, &raw_auth, &vrf_sign_data)
+					{
+						debug!(
+							target: LOG_TARGET,
+							"Claimed slot {} via ticket (aux-DB fast path, authority {})",
+							*slot, auth_idx,
+						);
+						return Some(SafroleClaim {
+							public: authority.clone(),
+							pre_digest: SafrolePreDigest::Ticket {
+								slot,
+								ticket_index: slot_in_epoch as u32,
+								vrf_signature,
+							},
+						});
+					}
+				}
+			}
+		}
+
+		// Slow path: brute-force over local keys (fallback for tickets
+		// generated before aux-DB was populated, e.g. after node restart).
 		for authority in &aux.authorities {
 			let raw_auth = to_raw_public(authority);
-			if !self
-				.keystore
-				.has_keys(&[(raw_auth.to_raw_vec(), KEY_TYPE)])
-			{
+			if !self.keystore.has_keys(&[(raw_auth.to_raw_vec(), KEY_TYPE)]) {
 				continue;
 			}
 
-			// Create VRF signature for the seal.
 			let vrf_input_data = [
 				b"jam_ticket_seal".as_slice(),
 				&aux.epoch_randomness,
 				&(*slot).to_le_bytes(),
 			]
 			.concat();
-
-			let vrf_sign_data =
-				bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
-
+			let vrf_sign_data = bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
 			let vrf_signature = match self
 				.keystore
 				.bandersnatch_vrf_sign(KEY_TYPE, &raw_auth, &vrf_sign_data)
@@ -473,18 +504,13 @@ where
 				_ => continue,
 			};
 
-			// Check if this key's VRF output matches the ticket id.
-			// The ticket id was generated as VRF(key, epoch_randomness || attempt).
-			// We verify by computing VRF output for each attempt and comparing.
-			let epoch_randomness = &aux.epoch_randomness;
 			for attempt in 0..=ticket.attempt {
 				let ticket_input_data = [
 					b"jam_ticket".as_slice(),
-					epoch_randomness,
+					&aux.epoch_randomness,
 					&[attempt],
 				]
 				.concat();
-
 				let ticket_vrf_data =
 					bandersnatch::vrf::VrfSignData::new(&ticket_input_data, b"");
 
@@ -496,9 +522,8 @@ where
 					if output_bytes == ticket.id {
 						debug!(
 							target: LOG_TARGET,
-							"Claimed slot {} via ticket (attempt {})",
-							*slot,
-							attempt,
+							"Claimed slot {} via ticket (brute-force fallback, attempt {})",
+							*slot, attempt,
 						);
 						return Some(SafroleClaim {
 							public: authority.clone(),

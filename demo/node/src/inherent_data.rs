@@ -2,6 +2,8 @@ use authority_selection_inherents::{
 	AriadneInherentDataProvider as AriadneIDP, AuthoritySelectionDataSource,
 	AuthoritySelectionInputs, CommitteeMember,
 };
+use pallet_safrole::SafroleApi as _;
+use sc_partner_chains_consensus_safrole::ticket_worker::RingVerifierKeyProvider;
 use derive_new::new;
 use jsonrpsee::core::async_trait;
 use pallet_safrole::find_pre_digest;
@@ -99,6 +101,7 @@ where
 	T::Api: BlockParticipationApi<Block, BlockAuthor>,
 	T::Api: GovernedMapIDPApi<Block>,
 	T::Api: TokenBridgeIDPRuntimeApi<Block>,
+	T::Api: pallet_safrole::SafroleApi<Block>,
 {
 	type InherentDataProviders = (
 		SlotIDP,
@@ -109,6 +112,7 @@ where
 		BlockParticipationInherentDataProvider<BlockAuthor, DelegatorKey>,
 		GovernedMapInherentDataProvider,
 		TokenBridgeInherentDataProvider<AccountId>,
+		RingVerifierKeyProvider,
 	);
 
 	async fn create_inherent_data_providers(
@@ -179,6 +183,22 @@ where
 		)
 		.await?;
 
+		// Provide ring verifier key when authorities change.
+		// Check if the stored key is absent (first block or authority set changed).
+		let ring_vk_provider = {
+			let has_key = client
+				.runtime_api()
+				.ring_verifier_key(parent_hash)
+				.unwrap_or(None)
+				.is_some();
+			if has_key {
+				RingVerifierKeyProvider::new(None)
+			} else {
+				let authorities = client.runtime_api().authorities(parent_hash).unwrap_or_default();
+				RingVerifierKeyProvider::from_authorities(&authorities)
+			}
+		};
+
 		Ok((
 			slot_idp,
 			timestamp,
@@ -188,6 +208,7 @@ where
 			payouts,
 			governed_map,
 			bridge,
+			ring_vk_provider,
 		))
 	}
 }

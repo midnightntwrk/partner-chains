@@ -43,6 +43,7 @@ frame_support::construct_runtime!(
 		SessionCommitteeManagement: pallet_session_validator_management,
 		Safrole: pallet_safrole,
 		Grandpa: pallet_grandpa,
+		GrandpaWeights: pallet_grandpa_weights,
 		Balances: pallet_balances,
 		PolkadotSessionStubForGrandpa: pallet_session,
 		Session: pallet_partner_chains_session,
@@ -209,6 +210,8 @@ impl pallet_grandpa::Config for Test {
 	type KeyOwnerProof = sp_core::Void;
 	type EquivocationReportSystem = ();
 }
+
+impl pallet_grandpa_weights::Config for Test {}
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

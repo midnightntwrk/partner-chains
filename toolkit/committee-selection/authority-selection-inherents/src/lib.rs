@@ -25,7 +25,7 @@ pub use {
 		runtime_decl_for_candidate_validation_api, validate_permissioned_candidate_data,
 		validate_registration_data, validate_stake,
 	},
-	select_authorities::select_authorities,
+	select_authorities::{SelectionResult, select_authorities, select_authorities_with_weights},
 };
 #[cfg(feature = "std")]
 pub use {

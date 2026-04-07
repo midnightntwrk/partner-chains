@@ -24,6 +24,7 @@ sp-core = { workspace = true, features = ["bandersnatch-experimental"] }
 sp-runtime = { workspace = true }
 sp-io = { workspace = true }
 sp-api = { workspace = true }
+sp-inherents = { workspace = true }
 pallet-timestamp = { workspace = true }
 
 [dev-dependencies]
@@ -42,6 +43,7 @@ std = [
 	"sp-runtime/std",
 	"sp-io/std",
 	"sp-api/std",
+	"sp-inherents/std",
 	"sp-application-crypto/std",
 	"pallet-timestamp/std",
 ]

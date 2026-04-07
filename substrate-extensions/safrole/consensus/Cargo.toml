@@ -35,6 +35,8 @@ sp-keystore = { workspace = true, default-features = true, features = ["bandersn
 sp-runtime = { workspace = true, default-features = true }
 sp-partner-chains-consensus-common = { workspace = true, default-features = true }
 pallet-safrole = { workspace = true, default-features = true }
+sc-transaction-pool-api = { workspace = true, default-features = true }
+tokio = { workspace = true }
 substrate-prometheus-endpoint = { workspace = true }
 
 [lib]

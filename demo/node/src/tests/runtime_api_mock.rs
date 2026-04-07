@@ -131,6 +131,30 @@ sp_api::mock_impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_safrole::SafroleApi<Block> for TestApi {
+		fn slot_duration() -> sp_consensus_slots::SlotDuration {
+			sp_consensus_slots::SlotDuration::from_millis(6000)
+		}
+		fn authorities() -> Vec<pallet_safrole::AuthorityId> {
+			Vec::new()
+		}
+		fn epoch_tickets() -> Option<Vec<pallet_safrole::Ticket>> {
+			None
+		}
+		fn is_fallback_mode() -> bool {
+			true
+		}
+		fn epoch_randomness() -> [u8; 32] {
+			[0u8; 32]
+		}
+		fn current_epoch() -> pallet_safrole::EpochIndex {
+			0
+		}
+		fn ring_verifier_key() -> Option<Vec<u8>> {
+			None
+		}
+	}
+
 	impl sp_partner_chains_bridge::TokenBridgeIDPRuntimeApi<Block> for TestApi {
 		fn get_pallet_version() -> u32 {
 			1

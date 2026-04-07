@@ -6872,6 +6872,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-grandpa-weights"
+version = "1.8.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-grandpa",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-consensus-grandpa",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-partner-chains-bridge"
 version = "1.8.1"
 dependencies = [
@@ -6918,6 +6932,7 @@ dependencies = [
  "sp-application-crypto",
  "sp-consensus-slots",
  "sp-core",
+ "sp-inherents",
  "sp-io",
  "sp-runtime",
 ]
@@ -7461,6 +7476,7 @@ dependencies = [
  "pallet-block-production-log",
  "pallet-governed-map",
  "pallet-grandpa",
+ "pallet-grandpa-weights",
  "pallet-partner-chains-bridge",
  "pallet-partner-chains-session",
  "pallet-safrole",
@@ -9848,6 +9864,7 @@ dependencies = [
  "sc-consensus",
  "sc-consensus-slots",
  "sc-telemetry",
+ "sc-transaction-pool-api",
  "sp-api",
  "sp-application-crypto",
  "sp-block-builder",
@@ -9860,6 +9877,7 @@ dependencies = [
  "sp-partner-chains-consensus-common",
  "sp-runtime",
  "substrate-prometheus-endpoint",
+ "tokio",
 ]
 
 [[package]]

@@ -28,6 +28,7 @@ serde_json = { workspace = true, default-features = false, features = [
 ] }
 
 pallet-safrole = { workspace = true }
+pallet-grandpa-weights = { workspace = true }
 pallet-balances = { workspace = true }
 frame-support = { workspace = true }
 pallet-grandpa = { workspace = true }
@@ -124,6 +125,7 @@ std = [
 	"frame-executive/std",
 	"frame-try-runtime/std",
 	"pallet-safrole/std",
+	"pallet-grandpa-weights/std",
 	"pallet-balances/std",
 	"pallet-block-producer-fees/std",
 	"pallet-block-production-log/std",

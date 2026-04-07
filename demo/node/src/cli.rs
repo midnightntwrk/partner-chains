@@ -1,4 +1,4 @@
-use partner_chains_cli::{AURA, GRANDPA, KeyDefinition};
+use partner_chains_cli::{GRANDPA, KeyDefinition, SAFROLE};
 use partner_chains_demo_runtime::opaque::SessionKeys;
 use partner_chains_node_commands::{PartnerChainRuntime, PartnerChainsSubcommand};
 use sc_cli::RunCmd;
@@ -26,7 +26,7 @@ impl PartnerChainRuntime for WizardBindings {
 	}
 
 	fn key_definitions() -> Vec<KeyDefinition<'static>> {
-		vec![AURA, GRANDPA]
+		vec![SAFROLE, GRANDPA]
 	}
 }
 

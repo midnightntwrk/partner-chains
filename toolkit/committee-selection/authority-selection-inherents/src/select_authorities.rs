@@ -11,6 +11,17 @@ use sidechain_domain::{EpochNonce, ScEpochNumber, UtxoId};
 use sp_core::{Get, U256, ecdsa};
 use sp_runtime::BoundedVec;
 
+/// Result of authority selection, including the committee and a weight map
+/// for GRANDPA stake-proportional finality voting.
+pub struct SelectionResult<TAccountId, TAccountKeys, MaxAuthorities: Get<u32>> {
+	/// The selected committee.
+	pub committee: BoundedVec<CommitteeMember<TAccountId, TAccountKeys>, MaxAuthorities>,
+	/// Map from candidate key bytes to stake weight (Lovelace).
+	/// Keyed by raw key bytes for each key type in the session keys.
+	/// Permissioned candidates have weight 1; registered have their `StakeDelegation`.
+	pub key_weights: Vec<(sp_runtime::KeyTypeId, Vec<u8>, u64)>,
+}
+
 /// Selects authorities using the Ariadne selection algorithm and data sourced from Partner Chains smart contracts on Cardano.
 /// Seed is constructed from the MC epoch nonce and the sidechain epoch.
 pub fn select_authorities<
@@ -27,6 +38,50 @@ pub fn select_authorities<
 		input,
 		sidechain_epoch,
 	)?))
+}
+
+/// Like [`select_authorities`] but also returns a weight map for GRANDPA stake-proportional voting.
+pub fn select_authorities_with_weights<
+	TAccountId: Clone + Ord + From<ecdsa::Public>,
+	TAccountKeys: Clone + Ord + MaybeFromCandidateKeys,
+	MaxAuthorities: Get<u32>,
+>(
+	genesis_utxo: UtxoId,
+	input: AuthoritySelectionInputs,
+	sidechain_epoch: ScEpochNumber,
+) -> Option<SelectionResult<TAccountId, TAccountKeys, MaxAuthorities>> {
+	let key_weights = extract_candidate_key_weights(&input);
+	let committee = BoundedVec::truncate_from(select_candidates::<TAccountId, TAccountKeys>(
+		genesis_utxo,
+		input,
+		sidechain_epoch,
+	)?);
+	Some(SelectionResult { committee, key_weights })
+}
+
+/// Extract a weight map from candidate registration data.
+/// For registered candidates: weight = StakeDelegation (Lovelace).
+/// For permissioned candidates: weight = 1.
+/// Returns `(key_type_id_bytes, key_bytes, weight)` triples.
+fn extract_candidate_key_weights(input: &AuthoritySelectionInputs) -> Vec<(sp_runtime::KeyTypeId, Vec<u8>, u64)> {
+	let mut weights = Vec::new();
+
+	for candidate in &input.registered_candidates {
+		let stake = candidate.stake_delegation.as_ref().map(|s| s.0).unwrap_or(1);
+		if let Some(reg) = candidate.registrations().first() {
+			for key in &reg.keys.0 {
+				weights.push((sp_runtime::KeyTypeId(key.id), key.bytes.clone(), stake));
+			}
+		}
+	}
+
+	for candidate in &input.permissioned_candidates {
+		for key in &candidate.keys.0 {
+			weights.push((sp_runtime::KeyTypeId(key.id), key.bytes.clone(), 1));
+		}
+	}
+
+	weights
 }
 
 fn select_candidates<

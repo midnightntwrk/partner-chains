@@ -13,7 +13,7 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use authority_selection_inherents::{
 	AuthoritySelectionInputs, CommitteeMember, PermissionedCandidateDataError,
-	RegistrationDataError, StakeError, select_authorities, validate_permissioned_candidate_data,
+	RegistrationDataError, StakeError, validate_permissioned_candidate_data,
 };
 use frame_support::genesis_builder_helper::{build_state, get_preset};
 use frame_support::inherent::ProvideInherent;
@@ -318,6 +318,8 @@ impl pallet_grandpa::Config for Runtime {
 	type EquivocationReportSystem = ();
 }
 
+impl pallet_grandpa_weights::Config for Runtime {}
+
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
@@ -397,11 +399,24 @@ impl pallet_session_validator_management::Config for Runtime {
 		input: AuthoritySelectionInputs,
 		sidechain_epoch: ScEpochNumber,
 	) -> Option<BoundedVec<Self::CommitteeMember, Self::MaxValidators>> {
-		select_authorities::<opaque::cross_chain_app::Public, SessionKeys, MaxValidators>(
-			Sidechain::genesis_utxo(),
-			input,
-			sidechain_epoch,
-		)
+		use authority_selection_inherents::select_authorities_with_weights;
+		use sp_consensus_grandpa::AuthorityId as GrandpaId;
+		use sp_runtime::key_types::GRANDPA;
+
+		let result = select_authorities_with_weights::<
+			opaque::cross_chain_app::Public, SessionKeys, MaxValidators,
+		>(Sidechain::genesis_utxo(), input, sidechain_epoch)?;
+
+		// Populate the GRANDPA weight map from candidate key data.
+		let grandpa_weights = result.key_weights.iter()
+			.filter(|(key_type, _, _)| *key_type == GRANDPA)
+			.filter_map(|(_, bytes, weight)| {
+				let key: [u8; 32] = bytes.as_slice().try_into().ok()?;
+				Some((GrandpaId::from(sp_core::ed25519::Public::from_raw(key)), *weight))
+			});
+		GrandpaWeights::set_weights(grandpa_weights);
+
+		Some(result.committee)
 	}
 
 	fn current_epoch_number() -> ScEpochNumber {
@@ -701,6 +716,9 @@ construct_runtime!(
 		Timestamp: pallet_timestamp,
 		Safrole: pallet_safrole,
 		Grandpa: pallet_grandpa,
+		// Must be declared AFTER Grandpa so on_finalize runs first (reverse order),
+		// patching PendingChange weights before Grandpa emits the ScheduledChange digest.
+		GrandpaWeights: pallet_grandpa_weights,
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
@@ -877,6 +895,14 @@ impl_runtime_apis! {
 		fn epoch_randomness() -> [u8; 32] {
 			pallet_safrole::EpochRandomness::<Runtime>::get()
 		}
+
+		fn current_epoch() -> pallet_safrole::EpochIndex {
+			pallet_safrole::CurrentEpoch::<Runtime>::get()
+		}
+
+		fn ring_verifier_key() -> Option<Vec<u8>> {
+			pallet_safrole::RingVerifierKeyBytes::<Runtime>::get().map(|v| v.into_inner())
+		}
 	}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
@@ -898,7 +924,7 @@ impl_runtime_apis! {
 
 	impl sp_consensus_grandpa::GrandpaApi<Block> for Runtime {
 		fn grandpa_authorities() -> sp_consensus_grandpa::AuthorityList {
-			Grandpa::grandpa_authorities()
+			GrandpaWeights::weighted_grandpa_authorities()
 		}
 
 		fn current_set_id() -> sp_consensus_grandpa::SetId {

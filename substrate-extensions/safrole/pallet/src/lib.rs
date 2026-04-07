@@ -40,9 +40,17 @@ use scale_info::TypeInfo;
 use sp_consensus_slots::Slot;
 use sp_core::bandersnatch;
 use sp_core::crypto::KeyTypeId;
+use sp_inherents::InherentIdentifier;
 
 /// Key type identifier for Safrole Bandersnatch keys.
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"safr");
+
+/// Maximum ring size for ring-VRF proofs.
+/// Must be >= the runtime's MaxAuthorities.
+pub const MAX_RING_SIZE: usize = 1024;
+
+/// Inherent identifier for ring verifier key updates.
+pub const RING_VERIFIER_KEY_INHERENT_ID: InherentIdentifier = *b"safrolek";
 
 /// Application crypto types for Safrole (Bandersnatch-based).
 /// This gives us `Public`, `Pair`, `Signature` types that implement
@@ -94,6 +102,11 @@ pub struct TicketEnvelope {
 	/// without revealing which authority submitted it.
 	pub ring_signature: bandersnatch::ring_vrf::RingVrfSignature,
 }
+
+// DecodeWithMemTracking impls — needed for pallet Call parameter types.
+// Manual impls because bandersnatch::ring_vrf::RingVrfSignature doesn't derive it.
+impl parity_scale_codec::DecodeWithMemTracking for Ticket {}
+impl parity_scale_codec::DecodeWithMemTracking for TicketEnvelope {}
 
 /// Epoch index type.
 pub type EpochIndex = u64;
@@ -190,6 +203,28 @@ pub mod pallet {
 			NextAuthorities::<T>::put(&self.authorities);
 			// First epoch starts in fallback mode (no tickets yet).
 			InFallbackMode::<T>::put(true);
+
+			// Compute and store the ring verifier key for the genesis authority set.
+			#[cfg(feature = "std")]
+			if !self.authorities.is_empty() {
+				let raw_pks: alloc::vec::Vec<sp_core::bandersnatch::Public> = self
+					.authorities
+					.iter()
+					.map(|a| {
+						let bytes: &[u8] = a.as_ref();
+						sp_core::bandersnatch::Public::from_raw(
+							bytes.try_into().expect("AuthorityId is 32 bytes"),
+						)
+					})
+					.collect();
+				let ring_ctx =
+					sp_core::bandersnatch::ring_vrf::RingContext::<MAX_RING_SIZE>::new_testing();
+				let vk = ring_ctx.verifier_key(&raw_pks);
+				let vk_bytes = parity_scale_codec::Encode::encode(&vk);
+				if let Ok(bounded) = BoundedVec::try_from(vk_bytes) {
+					RingVerifierKeyBytes::<T>::put(bounded);
+				}
+			}
 		}
 	}
 
@@ -198,24 +233,189 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-			// Slot is set from the pre-digest by the consensus engine before
-			// on_initialize runs. We also handle epoch boundary transitions here.
 			Weight::zero()
 		}
 
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			// Accumulate randomness from the current block's seal VRF output.
-			// The actual seal data is injected via the consensus engine's pre-digest;
-			// randomness accumulation will be wired once the consensus engine is in place.
 		}
+	}
+
+	// ── Errors ───────────────────────────────────────────────────────────
+
+	#[pallet::error]
+	pub enum Error<T> {
+		/// Ticket accumulator is full (EpochLength tickets already collected).
+		AccumulatorFull,
+		/// Ticket attempt index exceeds TicketsPerValidator.
+		InvalidAttempt,
+		/// A ticket with this ID has already been submitted.
+		DuplicateTicket,
+		/// Ring verifier key not set (no authority set configured).
+		NoRingVerifierKey,
+		/// Ring-VRF proof verification failed.
+		InvalidRingVrfProof,
+		/// VRF output does not match the claimed ticket ID.
+		TicketIdMismatch,
 	}
 
 	// ── Calls ────────────────────────────────────────────────────────────
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		// Ticket submission will be added as an unsigned extrinsic with
-		// ValidateUnsigned once the ring-VRF verification is wired up.
+		/// Submit a ring-VRF ticket for the next epoch's slot assignment.
+		///
+		/// This is an unsigned extrinsic — validators submit tickets anonymously
+		/// via the transaction pool. The ring-VRF proof proves membership in the
+		/// authority set without revealing which validator submitted it.
+		#[pallet::call_index(0)]
+		#[pallet::weight((Weight::from_parts(100_000_000, 0), DispatchClass::Operational))]
+		pub fn submit_ticket(
+			origin: OriginFor<T>,
+			envelope: alloc::boxed::Box<TicketEnvelope>,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+
+			let mut accumulator = TicketAccumulator::<T>::get();
+			ensure!(
+				(accumulator.len() as u32) < T::EpochLength::get(),
+				Error::<T>::AccumulatorFull
+			);
+			ensure!(
+				(envelope.ticket.attempt as u32) < T::TicketsPerValidator::get(),
+				Error::<T>::InvalidAttempt
+			);
+			ensure!(
+				accumulator.binary_search(&envelope.ticket).is_err(),
+				Error::<T>::DuplicateTicket
+			);
+
+			// Verify ring-VRF proof.
+			let vk_bytes = RingVerifierKeyBytes::<T>::get()
+				.ok_or(Error::<T>::NoRingVerifierKey)?;
+			let verifier_key = bandersnatch::ring_vrf::RingVerifierKey::decode(
+				&mut &vk_bytes[..],
+			)
+			.map_err(|_| Error::<T>::NoRingVerifierKey)?;
+			let verifier = bandersnatch::ring_vrf::RingContext::<MAX_RING_SIZE>::verifier_no_context(
+				verifier_key,
+			);
+
+			let epoch_randomness = EpochRandomness::<T>::get();
+			let mut vrf_input_data = alloc::vec::Vec::with_capacity(32 + 1 + 10);
+			vrf_input_data.extend_from_slice(b"jam_ticket");
+			vrf_input_data.extend_from_slice(&epoch_randomness);
+			vrf_input_data.push(envelope.ticket.attempt);
+
+			let _vrf_input = bandersnatch::vrf::VrfInput::new(&vrf_input_data);
+			let vrf_sign_data = bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
+
+			ensure!(
+				envelope.ring_signature.ring_vrf_verify(&vrf_sign_data, &verifier),
+				Error::<T>::InvalidRingVrfProof
+			);
+
+			// Verify ticket ID matches VRF output.
+			let output_bytes = envelope.ring_signature.pre_output.make_bytes();
+			ensure!(
+				output_bytes == envelope.ticket.id,
+				Error::<T>::TicketIdMismatch
+			);
+
+			// Insert sorted.
+			let insert_pos = accumulator
+				.binary_search(&envelope.ticket)
+				.unwrap_err();
+			accumulator
+				.try_insert(insert_pos, envelope.ticket)
+				.map_err(|_| Error::<T>::AccumulatorFull)?;
+			TicketAccumulator::<T>::put(accumulator);
+
+			Ok(())
+		}
+
+		/// Set the ring verifier key for the current authority set.
+		/// Called as an inherent by the block producer when authorities change.
+		#[pallet::call_index(1)]
+		#[pallet::weight((Weight::from_parts(10_000_000, 0), DispatchClass::Mandatory))]
+		pub fn set_ring_verifier_key(
+			origin: OriginFor<T>,
+			key_bytes: BoundedVec<u8, ConstU32<512>>,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+			RingVerifierKeyBytes::<T>::put(key_bytes);
+			Ok(())
+		}
+	}
+
+	// ── ValidateUnsigned ────────────────────────────────────────────────
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(
+			_source: TransactionSource,
+			call: &Self::Call,
+		) -> TransactionValidity {
+			match call {
+				Call::submit_ticket { envelope } => {
+					// Cheap checks only — ring-VRF verification is too expensive
+					// for pool validation and would be a DoS vector.
+					let accumulator = TicketAccumulator::<T>::get();
+					if (accumulator.len() as u32) >= T::EpochLength::get() {
+						return InvalidTransaction::ExhaustsResources.into();
+					}
+					if (envelope.ticket.attempt as u32) >= T::TicketsPerValidator::get() {
+						return InvalidTransaction::BadProof.into();
+					}
+					if accumulator.binary_search(&envelope.ticket).is_ok() {
+						return InvalidTransaction::Stale.into();
+					}
+
+					ValidTransaction::with_tag_prefix("SafroleTicket")
+						.priority(TransactionPriority::MAX)
+						.and_provides(envelope.ticket.id)
+						.longevity(T::EpochLength::get() as u64)
+						.propagate(true)
+						.build()
+				},
+				Call::set_ring_verifier_key { .. } => {
+					// Inherent — always valid.
+					ValidTransaction::with_tag_prefix("SafroleVerifierKey")
+						.priority(TransactionPriority::MAX)
+						.longevity(1)
+						.propagate(false)
+						.build()
+				},
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
+	// ── ProvideInherent (ring verifier key) ─────────────────────────────
+
+	#[pallet::inherent]
+	impl<T: Config> ProvideInherent for Pallet<T> {
+		type Call = Call<T>;
+		type Error = sp_inherents::MakeFatalError<()>;
+		const INHERENT_IDENTIFIER: InherentIdentifier = RING_VERIFIER_KEY_INHERENT_ID;
+
+		fn create_inherent(data: &InherentData) -> Option<Self::Call> {
+			let key_bytes: alloc::vec::Vec<u8> =
+				data.get_data(&Self::INHERENT_IDENTIFIER).ok()??;
+			let bounded = BoundedVec::try_from(key_bytes).ok()?;
+			Some(Call::set_ring_verifier_key { key_bytes: bounded })
+		}
+
+		fn is_inherent(call: &Self::Call) -> bool {
+			matches!(call, Call::set_ring_verifier_key { .. })
+		}
+
+		fn is_inherent_required(_data: &InherentData) -> Result<Option<Self::Error>, Self::Error> {
+			// Not required every block — only when authority set changes.
+			Ok(None)
+		}
 	}
 
 	// ── Public API ───────────────────────────────────────────────────────
@@ -478,5 +678,9 @@ sp_api::decl_runtime_apis! {
 		fn is_fallback_mode() -> bool;
 		/// The current epoch's randomness seed.
 		fn epoch_randomness() -> [u8; 32];
+		/// The current epoch index.
+		fn current_epoch() -> EpochIndex;
+		/// The encoded ring verifier key for the current authority set.
+		fn ring_verifier_key() -> Option<alloc::vec::Vec<u8>>;
 	}
 }

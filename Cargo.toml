@@ -21,6 +21,7 @@ members = [
 	"substrate-extensions/safrole/pallet",
 	"substrate-extensions/safrole/consensus",
 	"substrate-extensions/consensus-common/primitives",
+	"substrate-extensions/grandpa-weights",
 	"toolkit/block-production-log/primitives",
 	"toolkit/sidechain/domain",
 	"toolkit/committee-selection/selection",
@@ -305,6 +306,7 @@ pallet-partner-chains-session = { path = "substrate-extensions/partner-chains-se
 pallet-safrole = { path = "substrate-extensions/safrole/pallet", default-features = false }
 sp-partner-chains-consensus-common = { path = "substrate-extensions/consensus-common/primitives", default-features = false }
 sc-partner-chains-consensus-safrole = { path = "substrate-extensions/safrole/consensus", default-features = false }
+pallet-grandpa-weights = { path = "substrate-extensions/grandpa-weights", default-features = false }
 
 # block production and rewards
 pallet-block-production-log = { path = "toolkit/block-production-log/pallet", default-features = false }
