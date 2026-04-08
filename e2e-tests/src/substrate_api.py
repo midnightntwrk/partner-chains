@@ -955,7 +955,6 @@ class SubstrateApi(BlockchainApi):
             mc_block = self.get_mc_block_by_block_hash(mc_hash).block_no
             logger.debug(f"Main chain reference block: {mc_block}")
 
-            token_transfer_value = None
             block = self.substrate.get_block(block_number=block_no)
             for idx, extrinsic in enumerate(block["extrinsics"]):
                 logger.debug(f"# {idx}: {extrinsic.value}")
@@ -967,6 +966,7 @@ class SubstrateApi(BlockchainApi):
                     transfers = next((arg["value"] for arg in call_args if arg["name"] == "transfers"), [])
                     transfer_values = Counter()
                     for transfer in transfers:
+                        logger.error(f"# {transfer}")
                         for transfer_type, fields in transfer.items():
                             match transfer_type:
                                 case "ReserveTransfer":
