@@ -255,7 +255,7 @@ impl BlockDataSourceImpl {
 		Ok(block
 			.zip(latest_block)
 			.filter(|(block, latest_block)| {
-				block.block_no.saturating_add(self.security_parameter) <= latest_block.block_no
+				block.block_no.saturating_add(self.security_parameter) <= latest_block.block_no.saturating_add(self.block_stability_margin)
 					&& self.is_block_time_valid(block, reference_timestamp)
 			})
 			.map(|(block, _)| block))
