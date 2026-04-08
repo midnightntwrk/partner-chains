@@ -10,13 +10,16 @@
 //! # Working overview
 //!
 //! Bridge transfers are initiated by transactions on Cardano that create UTXOs
-//! on the illiquid circulating supply (ICP) validator address, each containing
-//! a datum which marks them as transfer UTXOs. The observability layer of a
-//! Partner Chain node registers creation of these UTXOs and classifies them
-//! either as *user transfers*, ie. transfers sent by normal chain users to a
-//! Partner Chain address specified by the user; or special *reserve transfers*,
-//! which are a mechanism for a Partner Chain to gradually move their token
-//! reserve from Cardano to its own ledger.
+//! on the illiquid circulating supply (ICP) validator address. The observability
+//! layer of a Partner Chain node registers these transactions and classifies them
+//! based on the metadata attached to the transaction as one of the following types:
+//! - *user transfers*, ie. transfers sent by normal chain users to a
+//!   Partner Chain address specified by the user,
+//! - *reserve transfers*, which are a mechanism for a Partner Chain to gradually
+//!   move their token reserve from Cardano to its own ledger,
+//! - *invalid transfers*, which are all transactions that have deposited some native
+//!   tokens into ICP but can not be classified due to invalid metadata. These transfers
+//!   are still processed in order for them to be accounted for and possibly recovered.
 //!
 //! Newly observed and classified bridge transfers are provided to the runtime
 //! as inherent data. Based on this data, the pallet creates an inherent
@@ -30,9 +33,9 @@
 //!
 //! ## Define the recipient type
 //!
-//! All user transfers handler by the pallet are addressed to a recipient
-//! specified in the datum of the transfer UTXO. This recipient can be any
-//! type that can be encoded and decoded as a Plutus byte string. A natural
+//! All user transfers handled by the pallet are addressed to a recipient
+//! specified in the transaction's metadata. This recipient can be any
+//! type that can be encoded and decoded as a byte string. A natural
 //! choice would be the account address used in the Partner Chain runtime,
 //! but a different type can be chosen as needed.
 //!
@@ -189,6 +192,7 @@ pub mod benchmarking;
 /// Weight types and default weight values
 pub mod weights;
 
+use frame_support::pallet_prelude::*;
 pub use pallet::*;
 use sp_partner_chains_bridge::BridgeTransferV1;
 
@@ -212,10 +216,12 @@ impl<Recipient> TransferHandler<Recipient> for () {
 pub mod pallet {
 	use super::*;
 	use crate::weights::WeightInfo;
-	use frame_support::pallet_prelude::*;
-	use frame_system::{ensure_none, pallet_prelude::OriginFor};
+	use frame_system::{
+		ensure_none,
+		pallet_prelude::{BlockNumberFor, OriginFor},
+	};
 	use parity_scale_codec::MaxEncodedLen;
-	use sidechain_domain::UtxoId;
+	use sidechain_domain::McTxHash;
 	use sp_partner_chains_bridge::{
 		BridgeDataCheckpoint, INHERENT_IDENTIFIER, InherentError, MainChainScripts,
 		TokenBridgeTransfersV1,
@@ -253,7 +259,10 @@ pub mod pallet {
 
 	/// Error type used by the pallet's extrinsics
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		/// Only one inherent call per block is allowed
+		InherentAlreadyExecuted,
+	}
 
 	#[pallet::storage]
 	pub type MainChainScriptsConfiguration<T: Config> =
@@ -262,13 +271,16 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type DataCheckpoint<T: Config> = StorageValue<_, BridgeDataCheckpoint, OptionQuery>;
 
+	#[pallet::storage]
+	pub type InherentExecutedThisBlock<T: Config> = StorageValue<_, bool, ValueQuery>;
+
 	/// Genesis configuration of the pallet
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		/// Initial main chain scripts
 		pub main_chain_scripts: Option<MainChainScripts>,
 		/// The initial data checkpoint. Chain Genesis UTXO is a good candidate for it.
-		pub initial_checkpoint: Option<UtxoId>,
+		pub initial_checkpoint: Option<McTxHash>,
 		#[allow(missing_docs)]
 		pub _marker: PhantomData<T>,
 	}
@@ -283,7 +295,19 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			MainChainScriptsConfiguration::<T>::set(self.main_chain_scripts.clone());
-			DataCheckpoint::<T>::set(self.initial_checkpoint.map(BridgeDataCheckpoint::Utxo));
+			DataCheckpoint::<T>::set(self.initial_checkpoint.map(BridgeDataCheckpoint::Tx));
+		}
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			// Pre-account for on_finalize weight (storage write to reset inherent flag)
+			T::DbWeight::get().writes(1)
+		}
+
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			InherentExecutedThisBlock::<T>::kill();
 		}
 	}
 
@@ -298,6 +322,8 @@ pub mod pallet {
 			data_checkpoint: BridgeDataCheckpoint,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+			ensure!(!InherentExecutedThisBlock::<T>::get(), Error::<T>::InherentAlreadyExecuted);
+			InherentExecutedThisBlock::<T>::put(true);
 			for transfer in transfers {
 				T::TransferHandler::handle_incoming_transfer(transfer);
 			}
