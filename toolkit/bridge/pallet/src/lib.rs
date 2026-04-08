@@ -262,8 +262,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Only one inherent call per block is allowed
 		InherentAlreadyExecuted,
-		/// Too many transactions to handle
-		TooManyUtxos,
 	}
 
 	#[pallet::storage]
