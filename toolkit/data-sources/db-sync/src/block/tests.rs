@@ -277,6 +277,8 @@ fn mk_datasource(pool: PgPool, security_parameter: u32) -> BlockDataSourceImpl {
 	BlockDataSourceImpl {
 		pool,
 		security_parameter,
+		active_slots_coefficient: 0.05,
+		slot_duration_millis: 1000,
 		min_slot_boundary_as_seconds: TimeDelta::seconds(1667),
 		max_slot_boundary_as_seconds: TimeDelta::seconds(5000),
 		mainchain_epoch_config: mainchain_epoch_config(),

@@ -13,6 +13,7 @@ pub struct McFollowerMetrics {
 	latest_cardano_block_slot: Gauge<U64>,
 	referenced_cardano_block_number: Gauge<U64>,
 	referenced_cardano_block_slot: Gauge<U64>,
+	expected_cardano_tip_height: Gauge<U64>,
 }
 
 impl McFollowerMetrics {
@@ -33,6 +34,9 @@ impl McFollowerMetrics {
 	}
 	pub(crate) fn referenced_cardano_block_slot(&self) -> &Gauge<U64> {
 		&self.referenced_cardano_block_slot
+	}
+	pub(crate) fn expected_cardano_tip_height(&self) -> &Gauge<U64> {
+		&self.expected_cardano_tip_height
 	}
 	pub(crate) fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
@@ -81,6 +85,13 @@ impl McFollowerMetrics {
 				Gauge::with_opts(Opts::new(
 					"partner_chains_data_source_referenced_cardano_block_slot",
 					"Referenced Cardano block slot observed during a data source lookup",
+				))?,
+				registry,
+			)?,
+			expected_cardano_tip_height: register(
+				Gauge::with_opts(Opts::new(
+					"partner_chains_data_source_expected_cardano_tip_height",
+					"Expected Cardano tip height computed using the latest observed block, current time and active_slots_coefficient",
 				))?,
 				registry,
 			)?,
@@ -160,6 +171,7 @@ pub(crate) mod mock {
 			latest_cardano_block_slot: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
 			referenced_cardano_block_number: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
 			referenced_cardano_block_slot: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
+			expected_cardano_tip_height: Gauge::with_opts(Opts::new("test", "test")).unwrap(),
 		}
 	}
 }
