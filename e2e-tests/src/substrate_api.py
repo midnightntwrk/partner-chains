@@ -966,18 +966,17 @@ class SubstrateApi(BlockchainApi):
                     transfers = next((arg["value"] for arg in call_args if arg["name"] == "transfers"), [])
                     transfer_values = Counter()
                     for transfer in transfers:
-                        for _type, fields in transfer.items():
-                            amount = fields["amount"]
-                            recipient_type, recipient = fields["recipient"]
-                            match recipient_type:
-                                case "Reserve":
-                                    transfer_values["reserve"] += amount
-                                case "Address":
-                                    transfer_values[recipient["recipient"]] += amount
-                                case "Invalid":
-                                    transfer_values["invalid"] += amount
-                                case _:
-                                    logger.error(f"Invalid recipient type in bridge inherent: {recipient_type}")
+                        amount = transfer["amount"]
+                        recipient = transfer["recipient"]
+                        match recipient:
+                            case "Reserve":
+                                transfer_values["reserve"] += amount
+                            case "Address", fields:
+                                transfer_values[fields["recipient"]] += amount
+                            case "Invalid":
+                                transfer_values["invalid"] += amount
+                            case _:
+                                logger.error(f"Invalid recipient in bridge inherent: {recipient}")
 
                         if transfer_values:
                             return transfer_values
