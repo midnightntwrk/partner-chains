@@ -23,6 +23,16 @@ use std::{sync::Arc, time::Duration};
 use time_source::SystemTimeSource;
 use tokio::task;
 
+/// Deterministic seeds for dev Bandersnatch keys (6 validators for JAM tiny profile).
+pub const DEV_BANDERSNATCH_SEEDS: [[u8; 32]; 6] = [
+	[1u8; 32], // Alice
+	[2u8; 32], // Bob
+	[3u8; 32], // Charlie
+	[4u8; 32], // Dave
+	[5u8; 32], // Eve
+	[6u8; 32], // Ferdie
+];
+
 type HostFunctions = sp_io::SubstrateHostFunctions;
 
 pub(crate) type FullClient =
@@ -200,6 +210,8 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 ) -> Result<TaskManager, ServiceError> {
+	let is_dev = config.chain_spec.chain_type() == sc_service::ChainType::Development;
+
 	if let Some(git_hash) = std::option_env!("EARTHLY_GIT_HASH") {
 		log::info!("🌱 Running version: {}", git_hash);
 	}
@@ -309,6 +321,24 @@ pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as 
 		telemetry: telemetry.as_mut(),
 		tracing_execute_block: None,
 	})?;
+
+	// In dev mode, insert well-known Bandersnatch keys so the node can author blocks.
+	// Inserts all 6 dev keys (JAM tiny profile) so a single node can act as all validators.
+	if is_dev {
+		use sp_core::{bandersnatch, crypto::Pair as _};
+		let keystore = keystore_container.keystore();
+		for (i, seed) in DEV_BANDERSNATCH_SEEDS.iter().enumerate() {
+			let pair = bandersnatch::Pair::from_seed(seed);
+			let seed_hex: String = pair.seed().iter().map(|b| format!("{b:02x}")).collect();
+			let _ = keystore.insert(
+				pallet_safrole::KEY_TYPE,
+				&format!("0x{seed_hex}"),
+				pair.public().as_ref(),
+			);
+			let names = ["Alice", "Bob", "Charlie", "Dave", "Eve", "Ferdie"];
+			log::info!("Inserted dev Bandersnatch key for {} (validator {})", names[i], i);
+		}
+	}
 
 	if role.is_authority() {
 		let basic_authorship_proposer_factory = sc_basic_authorship::ProposerFactory::new(

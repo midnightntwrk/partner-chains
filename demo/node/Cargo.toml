@@ -116,6 +116,9 @@ authority-selection-inherents = { workspace = true, features = ["mock"] }
 
 [features]
 default = ["sidechain-domain/std"]
+size-tiny = ["partner-chains-demo-runtime/size-tiny"]
+size-small = ["partner-chains-demo-runtime/size-small"]
+size-full = ["partner-chains-demo-runtime/size-full"]
 
 [lib]
 doctest = false

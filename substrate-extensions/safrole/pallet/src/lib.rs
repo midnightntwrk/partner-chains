@@ -46,8 +46,12 @@ use sp_inherents::InherentIdentifier;
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"safr");
 
 /// Maximum ring size for ring-VRF proofs.
-/// Must be >= the runtime's MaxAuthorities.
+/// Must be >= the actual authority set size. Controlled via feature flags:
+/// `size-full` = 1024, otherwise 16 (suitable for tiny/small profiles).
+#[cfg(feature = "size-full")]
 pub const MAX_RING_SIZE: usize = 1024;
+#[cfg(not(feature = "size-full"))]
+pub const MAX_RING_SIZE: usize = 16;
 
 /// Inherent identifier for ring verifier key updates.
 pub const RING_VERIFIER_KEY_INHERENT_ID: InherentIdentifier = *b"safrolek";
@@ -237,7 +241,16 @@ pub mod pallet {
 		}
 
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			// Accumulate randomness from the current block's seal VRF output.
+			// Accumulate randomness: mix in the current block's parent hash.
+			// In production this should use the seal's VRF output; for now
+			// the parent hash provides sufficient entropy for distinct epochs.
+			let parent_hash = frame_system::Pallet::<T>::parent_hash();
+			let mut next = NextEpochRandomness::<T>::get();
+			let hash_bytes = parent_hash.as_ref();
+			for (i, b) in hash_bytes.iter().enumerate().take(32) {
+				next[i] ^= b;
+			}
+			NextEpochRandomness::<T>::put(next);
 		}
 	}
 
@@ -362,13 +375,11 @@ pub mod pallet {
 				Call::submit_ticket { envelope } => {
 					// Cheap checks only — ring-VRF verification is too expensive
 					// for pool validation and would be a DoS vector.
-					let accumulator = TicketAccumulator::<T>::get();
-					if (accumulator.len() as u32) >= T::EpochLength::get() {
-						return InvalidTransaction::ExhaustsResources.into();
-					}
+					// Full capacity + duplicate checks happen in dispatch.
 					if (envelope.ticket.attempt as u32) >= T::TicketsPerValidator::get() {
 						return InvalidTransaction::BadProof.into();
 					}
+					let accumulator = TicketAccumulator::<T>::get();
 					if accumulator.binary_search(&envelope.ticket).is_ok() {
 						return InvalidTransaction::Stale.into();
 					}
@@ -485,9 +496,12 @@ pub mod pallet {
 			}
 
 			// Finalize ticket accumulator for the new epoch.
-			let tickets = TicketAccumulator::<T>::take();
+			// Only consume the accumulator if we have enough tickets.
+			// Otherwise keep accumulating across epochs until we do.
+			let tickets = TicketAccumulator::<T>::get();
 
 			if tickets.len() as u64 >= epoch_length {
+				TicketAccumulator::<T>::kill();
 				// Enough tickets: reorder outside-in for security (Gray Paper §6).
 				// Outside-in: alternate taking from front and back of sorted list.
 				let mut reordered = BoundedVec::default();

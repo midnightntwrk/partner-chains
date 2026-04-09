@@ -190,6 +190,14 @@ runtime-benchmarks = [
 	"pallet-partner-chains-bridge/runtime-benchmarks",
 	"pallet-session-validator-management/runtime-benchmarks",
 ]
+# Network size profiles (default: size-tiny)
+#   size-tiny:  6 validators, epoch=6,   ring=16
+#   size-small: 6 validators, epoch=12,  ring=16
+#   size-full:  1023 validators, epoch=600, ring=1024
+size-tiny = ["pallet-safrole/size-tiny"]
+size-small = ["pallet-safrole/size-small"]
+size-full = ["pallet-safrole/size-full"]
+
 try-runtime = [
 	"frame-try-runtime/try-runtime",
 	"frame-executive/try-runtime",

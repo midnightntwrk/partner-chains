@@ -13,7 +13,7 @@ GRANDPA finality stays. Fresh chain. Full spec including ring-VRF anonymity.
 - **D4**: `InherentDigest` mechanism is consensus-agnostic, extracted to `sp-partner-chains-consensus-common`
 - **D5**: Fallback mode from day one (chain liveness on first epoch)
 - **D6**: Hard fork, no dual Aura/Safrole
-- **D7**: Proportional seats for stake weighting (not weighted tickets) because GRANDPA assumes equal authority weight. Ariadne expands the committee so validators appear proportional to their stake. Each seat gets equal Safrole tickets and equal GRANDPA voting weight.
+- **D7**: Stake weighting via two mechanisms: (1) Ariadne's existing proportional seat allocation for block production, (2) `pallet-grandpa-weights` injects stake-proportional GRANDPA authority weights for finality voting. No polkadot-sdk fork — patches `PendingChange` storage before GRANDPA's `on_finalize`.
 
 ## Completed
 
@@ -116,28 +116,47 @@ SessionKeys changed to `{ safrole: Safrole, grandpa: Grandpa }` in runtime.
 - `tests/chain_spec.rs`: Update authority_keys construction
 - `tests/runtime_api_mock.rs`: Update SessionKeys construction
 
-## Not Yet Started
+## Completed (continued)
 
-### Phase 6: Proportional seats in Ariadne
+### Phase 6: Stake-weighted GRANDPA finality
 
-- Modify `select_authorities` to expand validator set proportional to stake
-- Each validator appears N times where N is proportional to their delegation weight
-- No changes to Safrole protocol needed (equal tickets per seat)
+Original plan was seat expansion (duplicating validators proportional to stake).
+Replaced with a cleaner approach: direct GRANDPA weight injection.
+
+- `pallet-grandpa-weights` (`substrate-extensions/grandpa-weights/`) stores GrandpaId → stake weight
+- Patches `pallet_grandpa::PendingChange` in `on_finalize` before GRANDPA emits `ScheduledChange` digest
+- `GrandpaApi::grandpa_authorities()` returns weighted authorities via `weighted_grandpa_authorities()`
+- `select_authorities_with_weights` extracts stake data from candidate registrations
+- No polkadot-sdk fork needed; underlying `finality-grandpa` library already supports weighted voting
+- Block production proportionality handled separately by ariadne_v2's existing seat allocation
 
 ### Phase 7: Ticket submission
 
-- Background task in node service that generates ring-VRF tickets at epoch start
-- Submitted as unsigned extrinsics
-- `ValidateUnsigned` in pallet verifies ring-VRF proofs
+`substrate-extensions/safrole/pallet/src/lib.rs` + `substrate-extensions/safrole/consensus/src/ticket_worker.rs`
+
+- `submit_ticket` unsigned extrinsic with `DispatchClass::Operational` priority
+- Ring-VRF proof verification on-chain via `RingContext::verifier_no_context`
+- `ValidateUnsigned`: cheap pool checks (duplicate, accumulator full, valid attempt); full ring-VRF verify in dispatch
+- `set_ring_verifier_key` inherent — block producer supplies verifier key at epoch boundary
+- `ProvideInherent` for ring verifier key with `RingVerifierKeyProvider` inherent data provider
+- Genesis computes and stores initial `RingVerifierKey` from `new_testing()` SRS
+- Runtime API extensions: `current_epoch()`, `ring_verifier_key()`
+- Background `run_ticket_worker` task generates tickets per epoch for local authority keys
+- Ticket worker wired end-to-end: `TicketExtrinsicBuilder` callback from service.rs constructs unsigned extrinsics, pool submission via `TransactionPool::submit_one`
+- Spawned as essential blocking task in `service.rs`
 
 ### Phase 8: Aux-DB ticket mapping
 
-- Optimise `claim_slot_ticket()` from brute-force to O(1) lookup
-- Store `(epoch, ticket_id) -> local_key_index` when tickets submitted
-- Persist across node restarts via `AuxStore`
+`substrate-extensions/safrole/consensus/src/ticket_worker.rs` + `lib.rs`
 
-## Open Questions
+- Aux-DB key: `safrole_ticket::{epoch_le_bytes}::{ticket_id_bytes}` → `authority_index (u32 LE)`
+- `store_ticket_owner()` called in ticket worker when generating tickets
+- `lookup_ticket_owner()` used in `claim_slot_ticket()` for O(1) fast path
+- Brute-force fallback preserved for tickets from before aux-DB was populated (e.g. node restart)
+- `AuxStore` bound added to `SafroleWorker` slot claiming impl block
 
-- Does `app_crypto!` support bandersnatch on polkadot-stable2603? If not, what's the minimal trait set needed for `impl_opaque_keys!`?
-- Ring context SRS data: where does the zcash-srs-2-11-uncompressed.bin live? Gooseberry includes it but it's large. Do we embed or fetch?
+## Open Questions (Resolved)
+
+- ~~Does `app_crypto!` support bandersnatch on polkadot-stable2603?~~ **Yes.** `app_crypto!(bandersnatch, KEY_TYPE)` works.
+- Ring context SRS data: where does the zcash-srs-2-11-uncompressed.bin live? Gooseberry includes it but it's large. Embed (try compressing but might be uncompressible if random). **Currently using `new_testing()` deterministic SRS. Production SRS is a future concern.**
 - Epoch length: currently hardcoded as `ConstU32<60>`. Should this be configurable via chain spec or derived from Cardano epoch config?

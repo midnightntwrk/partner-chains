@@ -439,14 +439,17 @@ where
 		let ticket = tickets.get(slot_in_epoch)?;
 
 		// O(1) lookup: check aux-DB for ticket→authority mapping.
-		// Try fast path: aux-DB lookup populated by ticket worker.
-		// Epoch index = slot / epoch_length (same formula as pallet_safrole::set_slot).
+		// Tickets were generated in epoch N-1 (or earlier) for use in epoch N.
+		// Try current and previous epochs since we don't know exactly when.
 		let epoch_index = *slot / epoch_length as u64;
-		if let Some(auth_idx) = ticket_worker::lookup_ticket_owner(
-			self.client.as_ref(),
-			epoch_index,
-			&ticket.id,
-		) {
+		let auth_idx = ticket_worker::lookup_ticket_owner(
+			self.client.as_ref(), epoch_index, &ticket.id,
+		).or_else(|| ticket_worker::lookup_ticket_owner(
+			self.client.as_ref(), epoch_index.saturating_sub(1), &ticket.id,
+		)).or_else(|| ticket_worker::lookup_ticket_owner(
+			self.client.as_ref(), epoch_index.saturating_sub(2), &ticket.id,
+		));
+		if let Some(auth_idx) = auth_idx {
 			if let Some(authority) = aux.authorities.get(auth_idx as usize) {
 				let raw_auth = to_raw_public(authority);
 				if self.keystore.has_keys(&[(raw_auth.to_raw_vec(), KEY_TYPE)]) {

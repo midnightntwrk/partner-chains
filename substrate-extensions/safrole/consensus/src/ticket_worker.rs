@@ -133,9 +133,11 @@ pub async fn run_ticket_worker<B, C, P>(
 	P: TransactionPool<Block = B> + 'static,
 {
 	let mut last_epoch: EpochIndex = 0;
+	// Poll frequently to catch epoch changes early.
+	let poll_interval = Duration::from_millis(slot_duration_ms / 6).max(Duration::from_millis(500));
 
 	loop {
-		tokio::time::sleep(Duration::from_millis(slot_duration_ms)).await;
+		tokio::time::sleep(poll_interval).await;
 
 		let best = client.info().best_hash;
 		let api = client.runtime_api();

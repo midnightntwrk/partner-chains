@@ -297,11 +297,45 @@ impl frame_system::Config for Runtime {
 	type PostTransactions = ();
 }
 
+// Network size profiles — select via feature flag (default: size-tiny).
+// Mirrors JAM Gray Paper profiles.
+#[cfg(feature = "size-full")]
+mod safrole_params {
+	pub type EpochLength = frame_support::traits::ConstU32<600>;
+	pub type MaxAuth = frame_support::traits::ConstU32<1024>;
+	pub type Tickets = frame_support::traits::ConstU32<2>;
+}
+#[cfg(feature = "size-small")]
+mod safrole_params {
+	pub type EpochLength = frame_support::traits::ConstU32<12>;
+	pub type MaxAuth = frame_support::traits::ConstU32<6>;
+	pub type Tickets = frame_support::traits::ConstU32<2>;
+}
+#[cfg(feature = "size-tiny")]
+mod safrole_params {
+	pub type EpochLength = frame_support::traits::ConstU32<6>;
+	pub type MaxAuth = frame_support::traits::ConstU32<6>;
+	pub type Tickets = frame_support::traits::ConstU32<2>;
+}
+#[cfg(not(any(feature = "size-full", feature = "size-small", feature = "size-tiny")))]
+mod safrole_params {
+	// dev default: works with a single validator (1 × 2 >= 2)
+	// EpochLength=2 gives enough time for ticket generation + inclusion
+	pub type EpochLength = frame_support::traits::ConstU32<2>;
+	pub type MaxAuth = frame_support::traits::ConstU32<6>;
+	pub type Tickets = frame_support::traits::ConstU32<2>;
+}
+// NOTE: With EpochLength=2 and 6-second slots, each epoch is 12 seconds.
+// The ticket worker needs ~5 seconds to generate ring-VRF tickets, leaving
+// only 1 block opportunity to include them. This is tight but works — tickets
+// accumulate across epochs. The chain may take 2-3 epochs of fallback before
+// enough tickets are pooled for ticket mode.
+
 impl pallet_safrole::Config for Runtime {
-	type MaxAuthorities = MaxValidators;
-	type EpochLength = ConstU32<60>;
+	type MaxAuthorities = safrole_params::MaxAuth;
+	type EpochLength = safrole_params::EpochLength;
 	type SlotDuration = ConstU64<SLOT_DURATION>;
-	type TicketsPerValidator = ConstU32<2>;
+	type TicketsPerValidator = safrole_params::Tickets;
 }
 
 pallet_partner_chains_session::impl_pallet_session_config!(Runtime);

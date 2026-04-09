@@ -51,6 +51,11 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 ]
+# Network size profiles
+size-tiny = []
+size-small = []
+size-full = []
+
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",

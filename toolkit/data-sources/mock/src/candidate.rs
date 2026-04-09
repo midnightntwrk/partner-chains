@@ -297,6 +297,6 @@ impl AuthoritySelectionDataSource for AuthoritySelectionDataSourceMock {
 	}
 
 	async fn data_epoch(&self, for_epoch: McEpochNumber) -> Result<McEpochNumber> {
-		Ok(McEpochNumber(for_epoch.0 - 2))
+		Ok(McEpochNumber(for_epoch.0.saturating_sub(2)))
 	}
 }

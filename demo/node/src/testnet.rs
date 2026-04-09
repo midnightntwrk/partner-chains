@@ -34,15 +34,10 @@ pub fn development_config() -> Result<ChainSpec, envy::Error> {
 		.with_id("dev")
 		.with_chain_type(ChainType::Development)
 		.with_genesis_config(testnet_genesis(
-			// Initial PoA authorities
-			vec![
-				//alice public keys
-				authority_keys(
-					"0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
-					"0x88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee",
-					"0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1",
-				),
-			],
+			// Initial authorities — 6 dev validators (JAM tiny profile).
+			// Bandersnatch keys from deterministic seeds [1..6].
+			// Grandpa and cross-chain keys reuse testnet defaults.
+			dev_initial_authorities(),
 			// Sudo account
 			Some(get_account_id_from_seed::<sr25519::Public>(
 				"assist draw loud island six improve van gas slam urban penalty lyrics",
@@ -64,6 +59,42 @@ pub fn development_config() -> Result<ChainSpec, envy::Error> {
 			true,
 		)?)
 		.build())
+}
+
+/// 6 dev authorities with deterministic Bandersnatch keys (JAM tiny profile).
+pub fn dev_initial_authorities() -> Vec<AuthorityKeys> {
+	vec![
+		authority_keys(
+			"0x3f9828dfc4e8fdc12ed5f7e6f380b5d30ff328613e6d3e4a27e24ca3e64474b9",
+			"0x88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee",
+			"0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1",
+		),
+		authority_keys(
+			"0x7539d69a545904e39cabc487a63ae3b9f863afefede3f49c786a5047c5189cdb",
+			"0xd17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69",
+			"0x0390084fdbf27d2b79d26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f27",
+		),
+		authority_keys(
+			"0xe134487215eab300eb48406756ba428388fe88c64e893b96e069e3e71773a839",
+			"0x439660b36c6c03afafca027b910b4fecf99801834c62a5e6006f27d978de234f",
+			"0x0389411795514af1627765eceffcbd002719f031604fadd7d188e2dc585b4e1afb",
+		),
+		authority_keys(
+			"0x41d9bf549c4cf544b2e48ffce969bf13128135047eecb655351d0a2f43e1545d",
+			"0x5e639b43e0052c47447dac87d6fd2b6ec50bdd4d0f614e4299c665249bbd09d9",
+			"0x03bc9d0ca094bd5b8b3225d7651eac5d18c1c04bf8ae8f8b263eebca4e1410ed0c",
+		),
+		authority_keys(
+			"0xcf2be17e92f49ca57b59922203697173b5c817a4e396432282f45986a6736129",
+			"0x1dfe3e22cc0d45c70779c1095f7489a8ef3cf52d62fbd8c2fa38c9f1723502b5",
+			"0x031d10105e323c4afce225208f71a6441ee327a65b9e646e772500c74d31f669aa",
+		),
+		authority_keys(
+			"0x010b82f1050505f87462f3515f50d75d2f94dc91fa301d0e6279270d05dd4607",
+			"0x568cb4a574c6d178feb39c27dfc8b3f789e5f5423e19c71633c748b9acf086b5",
+			"0x0291f1217d5a04cb83312ee3d88a6e6b33284e053e6ccfc3a90339a0299d12967c",
+		),
+	]
 }
 
 pub fn testnet_initial_authorities() -> Vec<AuthorityKeys> {
