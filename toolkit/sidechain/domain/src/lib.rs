@@ -35,10 +35,7 @@ use scale_info::TypeInfo;
 use sp_core::{
 	ConstU32,
 	bounded::BoundedVec,
-	crypto::{
-		KeyTypeId,
-		key_types::GRANDPA,
-	},
+	crypto::{KeyTypeId, key_types::GRANDPA},
 	ecdsa, ed25519,
 };
 #[cfg(feature = "serde")]
@@ -1234,9 +1231,7 @@ impl CandidateKeys {
 
 	/// True for keys that are only Safrole and Grandpa
 	pub fn has_only_safrole_and_grandpa_keys(&self) -> bool {
-		self.0.len() == 2
-			&& self.find(SAFROLE_KEY_TYPE).is_some()
-			&& self.find(GRANDPA).is_some()
+		self.0.len() == 2 && self.find(SAFROLE_KEY_TYPE).is_some() && self.find(GRANDPA).is_some()
 	}
 }
 
@@ -1323,7 +1318,8 @@ impl FromStr for PermissionedCandidateData {
 						hex::decode(sidechain_pub_key).map_err(|e| e.to_string())?,
 					),
 					keys: CandidateKeys(vec![
-						SafrolePublicKey(hex::decode(safrole_pub_key).map_err(|e| e.to_string())?).into(),
+						SafrolePublicKey(hex::decode(safrole_pub_key).map_err(|e| e.to_string())?)
+							.into(),
 						GrandpaPublicKey(hex::decode(grandpa_pub_key).map_err(|e| e.to_string())?)
 							.into(),
 					]),

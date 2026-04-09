@@ -84,14 +84,12 @@ pub mod pallet {
 					);
 					let next_authorities =
 						frame_support::WeakBoundedVec::force_from(authorities, None);
-					pallet_grandpa::PendingChange::<T>::put(
-						pallet_grandpa::StoredPendingChange {
-							scheduled_at: pending.scheduled_at,
-							delay: pending.delay,
-							next_authorities,
-							forced: pending.forced,
-						},
-					);
+					pallet_grandpa::PendingChange::<T>::put(pallet_grandpa::StoredPendingChange {
+						scheduled_at: pending.scheduled_at,
+						delay: pending.delay,
+						next_authorities,
+						forced: pending.forced,
+					});
 				}
 			}
 		}

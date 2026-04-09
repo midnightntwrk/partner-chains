@@ -2,15 +2,15 @@ use authority_selection_inherents::{
 	AriadneInherentDataProvider as AriadneIDP, AuthoritySelectionDataSource,
 	AuthoritySelectionInputs, CommitteeMember,
 };
-use pallet_safrole::SafroleApi as _;
-use sc_partner_chains_consensus_safrole::ticket_worker::RingVerifierKeyProvider;
 use derive_new::new;
 use jsonrpsee::core::async_trait;
+use pallet_safrole::SafroleApi as _;
 use pallet_safrole::find_pre_digest;
 use partner_chains_demo_runtime::{
 	AccountId, BlockAuthor, CrossChainPublic,
 	opaque::{Block, SessionKeys},
 };
+use sc_partner_chains_consensus_safrole::ticket_worker::RingVerifierKeyProvider;
 use sc_service::Arc;
 use sidechain_domain::{
 	DelegatorKey, McBlockHash, ScEpochNumber, mainchain_epoch::MainchainEpochConfig,
@@ -33,7 +33,10 @@ use sp_consensus_slots::{Slot, SlotDuration};
 pub struct SlotIDP(Slot);
 
 impl SlotIDP {
-	pub fn from_timestamp_and_slot_duration(timestamp: Timestamp, slot_duration: SlotDuration) -> Self {
+	pub fn from_timestamp_and_slot_duration(
+		timestamp: Timestamp,
+		slot_duration: SlotDuration,
+	) -> Self {
 		Self(Slot::from_timestamp(timestamp, slot_duration))
 	}
 }
@@ -132,7 +135,8 @@ where
 		let CreateInherentDataConfig { mc_epoch_config, sc_slot_config, time_source } = config;
 
 		let timestamp = TimestampIDP::new(Timestamp::new(time_source.get_current_time_millis()));
-		let slot_idp = SlotIDP::from_timestamp_and_slot_duration(*timestamp, sc_slot_config.slot_duration);
+		let slot_idp =
+			SlotIDP::from_timestamp_and_slot_duration(*timestamp, sc_slot_config.slot_duration);
 		let slot = *slot_idp;
 		let parent_header = client.expect_header(parent_hash)?;
 		let mc_hash = McHashIDP::new_proposal(
@@ -186,11 +190,8 @@ where
 		// Provide ring verifier key when authorities change.
 		// Check if the stored key is absent (first block or authority set changed).
 		let ring_vk_provider = {
-			let has_key = client
-				.runtime_api()
-				.ring_verifier_key(parent_hash)
-				.unwrap_or(None)
-				.is_some();
+			let has_key =
+				client.runtime_api().ring_verifier_key(parent_hash).unwrap_or(None).is_some();
 			if has_key {
 				RingVerifierKeyProvider::new(None)
 			} else {

@@ -60,8 +60,8 @@ pub const RING_VERIFIER_KEY_INHERENT_ID: InherentIdentifier = *b"safrolek";
 /// This gives us `Public`, `Pair`, `Signature` types that implement
 /// `RuntimeAppPublic`, which is required by `impl_opaque_keys!`.
 pub mod app {
-	use sp_application_crypto::{app_crypto, bandersnatch};
 	use super::KEY_TYPE;
+	use sp_application_crypto::{app_crypto, bandersnatch};
 	app_crypto!(bandersnatch, KEY_TYPE);
 }
 
@@ -189,7 +189,8 @@ pub mod pallet {
 	/// The ring verifier key for the current authority set.
 	/// Cached to avoid recomputation every block.
 	#[pallet::storage]
-	pub type RingVerifierKeyBytes<T: Config> = StorageValue<_, BoundedVec<u8, ConstU32<512>>, OptionQuery>;
+	pub type RingVerifierKeyBytes<T: Config> =
+		StorageValue<_, BoundedVec<u8, ConstU32<512>>, OptionQuery>;
 
 	// ── Genesis ──────────────────────────────────────────────────────────
 
@@ -304,15 +305,13 @@ pub mod pallet {
 			);
 
 			// Verify ring-VRF proof.
-			let vk_bytes = RingVerifierKeyBytes::<T>::get()
-				.ok_or(Error::<T>::NoRingVerifierKey)?;
-			let verifier_key = bandersnatch::ring_vrf::RingVerifierKey::decode(
-				&mut &vk_bytes[..],
-			)
-			.map_err(|_| Error::<T>::NoRingVerifierKey)?;
-			let verifier = bandersnatch::ring_vrf::RingContext::<MAX_RING_SIZE>::verifier_no_context(
-				verifier_key,
-			);
+			let vk_bytes = RingVerifierKeyBytes::<T>::get().ok_or(Error::<T>::NoRingVerifierKey)?;
+			let verifier_key = bandersnatch::ring_vrf::RingVerifierKey::decode(&mut &vk_bytes[..])
+				.map_err(|_| Error::<T>::NoRingVerifierKey)?;
+			let verifier =
+				bandersnatch::ring_vrf::RingContext::<MAX_RING_SIZE>::verifier_no_context(
+					verifier_key,
+				);
 
 			let epoch_randomness = EpochRandomness::<T>::get();
 			let mut vrf_input_data = alloc::vec::Vec::with_capacity(32 + 1 + 10);
@@ -330,15 +329,10 @@ pub mod pallet {
 
 			// Verify ticket ID matches VRF output.
 			let output_bytes = envelope.ring_signature.pre_output.make_bytes();
-			ensure!(
-				output_bytes == envelope.ticket.id,
-				Error::<T>::TicketIdMismatch
-			);
+			ensure!(output_bytes == envelope.ticket.id, Error::<T>::TicketIdMismatch);
 
 			// Insert sorted.
-			let insert_pos = accumulator
-				.binary_search(&envelope.ticket)
-				.unwrap_err();
+			let insert_pos = accumulator.binary_search(&envelope.ticket).unwrap_err();
 			accumulator
 				.try_insert(insert_pos, envelope.ticket)
 				.map_err(|_| Error::<T>::AccumulatorFull)?;
@@ -367,10 +361,7 @@ pub mod pallet {
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
-		fn validate_unsigned(
-			_source: TransactionSource,
-			call: &Self::Call,
-		) -> TransactionValidity {
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
 				Call::submit_ticket { envelope } => {
 					// Cheap checks only — ring-VRF verification is too expensive
@@ -553,10 +544,7 @@ pub mod pallet {
 	{
 		fn on_timestamp_set(moment: T::Moment) {
 			let slot_duration = Self::slot_duration();
-			assert!(
-				slot_duration != 0,
-				"Safrole slot duration cannot be zero."
-			);
+			assert!(slot_duration != 0, "Safrole slot duration cannot be zero.");
 
 			let timestamp_slot =
 				moment / <T::Moment as sp_runtime::traits::UniqueSaturatedFrom<u64>>::unique_saturated_from(slot_duration);

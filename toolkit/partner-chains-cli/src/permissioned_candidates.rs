@@ -190,11 +190,16 @@ impl From<CandidateKeysFormat> for PermissionedCandidateKeys {
 			CandidateKeysFormat::V1 { partner_chains_key, keys } => {
 				Self { partner_chains_key, keys }
 			},
-			CandidateKeysFormat::V0 { sidechain_pub_key, safrole_pub_key, grandpa_pub_key } => Self {
-				partner_chains_key: sidechain_pub_key,
-				keys: vec![("safr".to_owned(), safrole_pub_key), ("gran".to_owned(), grandpa_pub_key)]
+			CandidateKeysFormat::V0 { sidechain_pub_key, safrole_pub_key, grandpa_pub_key } => {
+				Self {
+					partner_chains_key: sidechain_pub_key,
+					keys: vec![
+						("safr".to_owned(), safrole_pub_key),
+						("gran".to_owned(), grandpa_pub_key),
+					]
 					.into_iter()
 					.collect(),
+				}
 			},
 		}
 	}

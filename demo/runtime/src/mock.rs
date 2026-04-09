@@ -2,15 +2,13 @@ use authority_selection_inherents::{
 	AriadneInherentDataProvider, AuthoritySelectionInputs, MaybeFromCandidateKeys,
 	RegisterValidatorSignedMessage, filter_trustless_candidates_registrations,
 };
-use frame_support::{
-	Hashable,
-	pallet_prelude::*,
-	parameter_types,
-	traits::ConstU64,
-};
+use frame_support::{Hashable, pallet_prelude::*, parameter_types, traits::ConstU64};
 use frame_system::EnsureRoot;
 use hex_literal::hex;
-use pallet_safrole::{AuthorityId as SafroleId, AuthorityPair as SafrolePair, SAFROLE_ENGINE_ID, KEY_TYPE as SAFROLE_KEY_TYPE};
+use pallet_safrole::{
+	AuthorityId as SafroleId, AuthorityPair as SafrolePair, KEY_TYPE as SAFROLE_KEY_TYPE,
+	SAFROLE_ENGINE_ID,
+};
 use plutus::ToDatum;
 use sidechain_domain::*;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
@@ -397,7 +395,11 @@ pub struct TestKeys {
 
 impl TestKeys {
 	pub fn from_seed(s: &str) -> Self {
-		Self { cross_chain: pair_from_seed(s), safrole: pair_from_seed(s), grandpa: pair_from_seed(s) }
+		Self {
+			cross_chain: pair_from_seed(s),
+			safrole: pair_from_seed(s),
+			grandpa: pair_from_seed(s),
+		}
 	}
 	pub fn account(&self) -> AccountId32 {
 		MultiSigner::from(sp_core::ecdsa::Public::from(self.cross_chain.public())).into_account()
@@ -430,7 +432,8 @@ pub fn bob() -> TestKeys {
 
 fn initialize_with_slot_digest_and_increment_block_number(slot_number: u64) {
 	let slot = sp_consensus_slots::Slot::from(slot_number);
-	let pre_digest = Digest { logs: vec![DigestItem::PreRuntime(SAFROLE_ENGINE_ID, slot.encode())] };
+	let pre_digest =
+		Digest { logs: vec![DigestItem::PreRuntime(SAFROLE_ENGINE_ID, slot.encode())] };
 
 	System::reset_events();
 	System::initialize(&(System::block_number() + 1), &System::parent_hash(), &pre_digest);

@@ -13,7 +13,9 @@ fn pc_create_chain_spec_test() {
 		initial_permissioned_candidates_parsed: vec![ParsedPermissionedCandidatesKeys {
 			sidechain: ecdsa::Public::from_raw([11u8; 33]),
 			keys: SessionKeys {
-				safrole: pallet_safrole::AuthorityId::from(bandersnatch::Public::from_raw([12u8; 32])),
+				safrole: pallet_safrole::AuthorityId::from(bandersnatch::Public::from_raw(
+					[12u8; 32],
+				)),
 				grandpa: ed25519::Public::from([13u8; 32]).into(),
 			},
 		}],

@@ -42,7 +42,10 @@ fn testnet_genesis(
 		},
 		safrole: Default::default(),
 		grandpa: pallet_grandpa::GenesisConfig {
-			authorities: initial_authorities.iter().map(|(_, g)| (g.clone(), 1)).collect::<Vec<_>>(),
+			authorities: initial_authorities
+				.iter()
+				.map(|(_, g)| (g.clone(), 1))
+				.collect::<Vec<_>>(),
 			..Default::default()
 		},
 		sudo: SudoConfig { key: Some(root) },
@@ -89,11 +92,15 @@ pub fn local_config_genesis() -> Value {
 	testnet_genesis(
 		vec![
 			(
-				pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw([0u8; 32])),
+				pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw(
+					[0u8; 32],
+				)),
 				sp_keyring::Ed25519Keyring::Alice.public().into(),
 			),
 			(
-				pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw([0u8; 32])),
+				pallet_safrole::AuthorityId::from(sp_core::bandersnatch::Public::from_raw(
+					[0u8; 32],
+				)),
 				sp_keyring::Ed25519Keyring::Bob.public().into(),
 			),
 		],

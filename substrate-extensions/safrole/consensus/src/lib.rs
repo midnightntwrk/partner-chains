@@ -10,9 +10,7 @@ pub mod ticket_worker;
 
 use futures::prelude::*;
 use log::{debug, warn};
-use pallet_safrole::{
-	AuthorityId, SafrolePreDigest, Ticket, SAFROLE_ENGINE_ID, find_pre_digest,
-};
+use pallet_safrole::{AuthorityId, SAFROLE_ENGINE_ID, SafrolePreDigest, Ticket, find_pre_digest};
 use parity_scale_codec::Encode;
 use sc_client_api::{BlockOf, backend::AuxStore};
 use sc_consensus::block_import::BlockImport;
@@ -33,8 +31,8 @@ use sp_core::crypto::ByteArray;
 use sp_inherents::CreateInherentDataProviders;
 use sp_keystore::KeystorePtr;
 use sp_partner_chains_consensus_common::InherentDigest;
-use sp_runtime::traits::{Block as BlockT, Header, NumberFor};
 use sp_runtime::DigestItem;
+use sp_runtime::traits::{Block as BlockT, Header, NumberFor};
 use std::{marker::PhantomData, pin::Pin, sync::Arc};
 
 const LOG_TARGET: &str = "safrole";
@@ -45,7 +43,9 @@ pub const KEY_TYPE: sp_core::crypto::KeyTypeId = pallet_safrole::KEY_TYPE;
 /// Convert an `app::Public` (the RuntimeAppPublic wrapper) to the raw
 /// `bandersnatch::Public` needed by keystore methods.
 pub fn to_raw_public(app_pub: &AuthorityId) -> bandersnatch::Public {
-	bandersnatch::Public::from_raw(<[u8; 32]>::try_from(app_pub.as_ref()).expect("bandersnatch public key is 32 bytes"))
+	bandersnatch::Public::from_raw(
+		<[u8; 32]>::try_from(app_pub.as_ref()).expect("bandersnatch public key is 32 bytes"),
+	)
 }
 
 /// Runtime API that the Safrole consensus engine requires.
@@ -212,36 +212,19 @@ where
 		&mut self.block_import
 	}
 
-	fn aux_data(
-		&self,
-		header: &B::Header,
-		_slot: Slot,
-	) -> Result<Self::AuxData, ConsensusError> {
+	fn aux_data(&self, header: &B::Header, _slot: Slot) -> Result<Self::AuxData, ConsensusError> {
 		let api = self.client.runtime_api();
 		let at = header.hash();
 
-		let authorities = api
-			.authorities(at)
-			.map_err(|_| ConsensusError::InvalidAuthoritiesSet)?;
+		let authorities = api.authorities(at).map_err(|_| ConsensusError::InvalidAuthoritiesSet)?;
 
-		let epoch_tickets = api
-			.epoch_tickets(at)
-			.unwrap_or(None);
+		let epoch_tickets = api.epoch_tickets(at).unwrap_or(None);
 
-		let fallback_mode = api
-			.is_fallback_mode(at)
-			.unwrap_or(true);
+		let fallback_mode = api.is_fallback_mode(at).unwrap_or(true);
 
-		let epoch_randomness = api
-			.epoch_randomness(at)
-			.unwrap_or([0u8; 32]);
+		let epoch_randomness = api.epoch_randomness(at).unwrap_or([0u8; 32]);
 
-		Ok(SafroleAuxData {
-			authorities,
-			epoch_tickets,
-			epoch_randomness,
-			fallback_mode,
-		})
+		Ok(SafroleAuxData { authorities, epoch_tickets, epoch_randomness, fallback_mode })
 	}
 
 	fn authorities_len(&self, aux: &Self::AuxData) -> Option<usize> {
@@ -267,15 +250,8 @@ where
 		}
 	}
 
-	fn pre_digest_data(
-		&self,
-		_slot: Slot,
-		claim: &Self::Claim,
-	) -> Vec<DigestItem> {
-		vec![DigestItem::PreRuntime(
-			SAFROLE_ENGINE_ID,
-			claim.pre_digest.encode(),
-		)]
+	fn pre_digest_data(&self, _slot: Slot, claim: &Self::Claim) -> Vec<DigestItem> {
+		vec![DigestItem::PreRuntime(SAFROLE_ENGINE_ID, claim.pre_digest.encode())]
 	}
 
 	async fn block_import_params(
@@ -293,9 +269,7 @@ where
 			.keystore
 			.bandersnatch_sign(KEY_TYPE, &raw_public, header_hash.as_ref())
 			.map_err(|e| ConsensusError::CannotSign(e.to_string()))?
-			.ok_or_else(|| {
-				ConsensusError::CannotSign("Key not found in keystore".into())
-			})?;
+			.ok_or_else(|| ConsensusError::CannotSign("Key not found in keystore".into()))?;
 
 		let seal = DigestItem::Seal(SAFROLE_ENGINE_ID, signature.encode());
 
@@ -370,37 +344,24 @@ where
 {
 	/// Claim a slot in fallback mode (no tickets).
 	/// Uses deterministic VRF-based assignment: hash(randomness || slot) selects an authority.
-	fn claim_slot_fallback(
-		&self,
-		slot: Slot,
-		aux: &SafroleAuxData,
-	) -> Option<SafroleClaim> {
+	fn claim_slot_fallback(&self, slot: Slot, aux: &SafroleAuxData) -> Option<SafroleClaim> {
 		let randomness = &aux.epoch_randomness;
 		let mut input = [0u8; 40];
 		input[..32].copy_from_slice(randomness);
 		input[32..40].copy_from_slice(&(*slot).to_le_bytes());
 		let hash = sp_core::hashing::blake2_256(&input);
-		let idx =
-			u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) as usize;
+		let idx = u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) as usize;
 		let expected_idx = idx % aux.authorities.len();
 		let expected_authority = &aux.authorities[expected_idx];
 
 		// Check if we hold this authority's key in our keystore.
 		let raw_expected = to_raw_public(expected_authority);
-		if self
-			.keystore
-			.has_keys(&[(raw_expected.to_raw_vec(), KEY_TYPE)])
-		{
+		if self.keystore.has_keys(&[(raw_expected.to_raw_vec(), KEY_TYPE)]) {
 			// Create VRF signature for this slot.
-			let vrf_input_data = [
-				b"jam_fallback_seal".as_slice(),
-				randomness,
-				&(*slot).to_le_bytes(),
-			]
-			.concat();
+			let vrf_input_data =
+				[b"jam_fallback_seal".as_slice(), randomness, &(*slot).to_le_bytes()].concat();
 
-			let vrf_sign_data =
-				bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
+			let vrf_sign_data = bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
 
 			let vrf_signature = self
 				.keystore
@@ -424,11 +385,7 @@ where
 	/// Claim a slot in ticket mode.
 	/// Uses aux-DB for O(1) lookup of ticket ownership, falling back to
 	/// brute-force if no mapping is found.
-	fn claim_slot_ticket(
-		&self,
-		slot: Slot,
-		aux: &SafroleAuxData,
-	) -> Option<SafroleClaim> {
+	fn claim_slot_ticket(&self, slot: Slot, aux: &SafroleAuxData) -> Option<SafroleClaim> {
 		let tickets = aux.epoch_tickets.as_ref()?;
 
 		let epoch_length = tickets.len();
@@ -442,13 +399,22 @@ where
 		// Tickets were generated in epoch N-1 (or earlier) for use in epoch N.
 		// Try current and previous epochs since we don't know exactly when.
 		let epoch_index = *slot / epoch_length as u64;
-		let auth_idx = ticket_worker::lookup_ticket_owner(
-			self.client.as_ref(), epoch_index, &ticket.id,
-		).or_else(|| ticket_worker::lookup_ticket_owner(
-			self.client.as_ref(), epoch_index.saturating_sub(1), &ticket.id,
-		)).or_else(|| ticket_worker::lookup_ticket_owner(
-			self.client.as_ref(), epoch_index.saturating_sub(2), &ticket.id,
-		));
+		let auth_idx =
+			ticket_worker::lookup_ticket_owner(self.client.as_ref(), epoch_index, &ticket.id)
+				.or_else(|| {
+					ticket_worker::lookup_ticket_owner(
+						self.client.as_ref(),
+						epoch_index.saturating_sub(1),
+						&ticket.id,
+					)
+				})
+				.or_else(|| {
+					ticket_worker::lookup_ticket_owner(
+						self.client.as_ref(),
+						epoch_index.saturating_sub(2),
+						&ticket.id,
+					)
+				});
 		if let Some(auth_idx) = auth_idx {
 			if let Some(authority) = aux.authorities.get(auth_idx as usize) {
 				let raw_auth = to_raw_public(authority);
@@ -460,8 +426,7 @@ where
 						&(*slot).to_le_bytes(),
 					]
 					.concat();
-					let vrf_sign_data =
-						bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
+					let vrf_sign_data = bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
 
 					if let Ok(Some(vrf_signature)) =
 						self.keystore.bandersnatch_vrf_sign(KEY_TYPE, &raw_auth, &vrf_sign_data)
@@ -492,34 +457,23 @@ where
 				continue;
 			}
 
-			let vrf_input_data = [
-				b"jam_ticket_seal".as_slice(),
-				&aux.epoch_randomness,
-				&(*slot).to_le_bytes(),
-			]
-			.concat();
+			let vrf_input_data =
+				[b"jam_ticket_seal".as_slice(), &aux.epoch_randomness, &(*slot).to_le_bytes()]
+					.concat();
 			let vrf_sign_data = bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
-			let vrf_signature = match self
-				.keystore
-				.bandersnatch_vrf_sign(KEY_TYPE, &raw_auth, &vrf_sign_data)
-			{
-				Ok(Some(sig)) => sig,
-				_ => continue,
-			};
+			let vrf_signature =
+				match self.keystore.bandersnatch_vrf_sign(KEY_TYPE, &raw_auth, &vrf_sign_data) {
+					Ok(Some(sig)) => sig,
+					_ => continue,
+				};
 
 			for attempt in 0..=ticket.attempt {
-				let ticket_input_data = [
-					b"jam_ticket".as_slice(),
-					&aux.epoch_randomness,
-					&[attempt],
-				]
-				.concat();
-				let ticket_vrf_data =
-					bandersnatch::vrf::VrfSignData::new(&ticket_input_data, b"");
+				let ticket_input_data =
+					[b"jam_ticket".as_slice(), &aux.epoch_randomness, &[attempt]].concat();
+				let ticket_vrf_data = bandersnatch::vrf::VrfSignData::new(&ticket_input_data, b"");
 
-				if let Ok(Some(ticket_sig)) = self
-					.keystore
-					.bandersnatch_vrf_sign(KEY_TYPE, &raw_auth, &ticket_vrf_data)
+				if let Ok(Some(ticket_sig)) =
+					self.keystore.bandersnatch_vrf_sign(KEY_TYPE, &raw_auth, &ticket_vrf_data)
 				{
 					let output_bytes = ticket_sig.pre_output.make_bytes();
 					if output_bytes == ticket.id {
@@ -551,11 +505,7 @@ where
 }
 
 /// Verify a Bandersnatch Schnorr seal on a block header.
-pub fn verify_seal(
-	header_hash: &[u8],
-	seal_bytes: &[u8],
-	authority: &AuthorityId,
-) -> bool {
+pub fn verify_seal(header_hash: &[u8], seal_bytes: &[u8], authority: &AuthorityId) -> bool {
 	let Ok(signature) = bandersnatch::Signature::from_slice(seal_bytes) else {
 		return false;
 	};

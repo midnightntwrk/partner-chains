@@ -311,7 +311,7 @@ mod tests {
 	use ogmios_client::types::{Asset as OgmiosAsset, OgmiosTx, OgmiosUtxo, OgmiosValue};
 	use partner_chains_plutus_data::permissioned_candidates::permissioned_candidates_to_plutus_data;
 	use sidechain_domain::{
-		SafrolePublicKey, CandidateKeys, GrandpaPublicKey, PermissionedCandidateData,
+		CandidateKeys, GrandpaPublicKey, PermissionedCandidateData, SafrolePublicKey,
 		SidechainPublicKey,
 	};
 

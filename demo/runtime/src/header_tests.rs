@@ -4,8 +4,8 @@ mod header_verification {
 	use parity_scale_codec::Encode;
 	use sp_core::bandersnatch;
 	use sp_core::crypto::Pair;
-	use sp_runtime::traits::{BlakeTwo256, Hash};
 	use sp_runtime::DigestItem;
+	use sp_runtime::traits::{BlakeTwo256, Hash};
 
 	#[test]
 	fn test_header_hashing_and_bandersnatch_seal() {
@@ -31,16 +31,9 @@ mod header_verification {
 		let signature = pair.sign(header_hash.as_ref());
 
 		// Append the seal to the header
-		header
-			.digest
-			.logs
-			.push(DigestItem::Seal(SAFROLE_ENGINE_ID, signature.encode()));
+		header.digest.logs.push(DigestItem::Seal(SAFROLE_ENGINE_ID, signature.encode()));
 
 		// Verify the seal
-		assert!(bandersnatch::Pair::verify(
-			&signature,
-			header_hash.as_ref(),
-			&pair.public()
-		));
+		assert!(bandersnatch::Pair::verify(&signature, header_hash.as_ref(), &pair.public()));
 	}
 }

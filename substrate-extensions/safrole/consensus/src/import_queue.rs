@@ -5,9 +5,9 @@
 //! for Partner Chains mainchain hash verification.
 
 use crate::{LOG_TARGET, to_raw_public, verify_seal};
-use pallet_safrole::SafroleApi as SafroleRuntimeApi;
 use log::trace;
-use pallet_safrole::{SafrolePreDigest, SAFROLE_ENGINE_ID, find_pre_digest};
+use pallet_safrole::SafroleApi as SafroleRuntimeApi;
+use pallet_safrole::{SAFROLE_ENGINE_ID, SafrolePreDigest, find_pre_digest};
 use sc_client_api::{BlockOf, UsageProvider, backend::AuxStore};
 use sc_consensus::{
 	block_import::{BlockImport, BlockImportParams, ForkChoiceStrategy},
@@ -42,12 +42,7 @@ impl<C, CIDP, B: BlockT, ID> SafroleVerifier<C, CIDP, B, ID> {
 		create_inherent_data_providers: CIDP,
 		telemetry: Option<TelemetryHandle>,
 	) -> Self {
-		Self {
-			client,
-			create_inherent_data_providers,
-			telemetry,
-			_phantom: PhantomData,
-		}
+		Self { client, create_inherent_data_providers, telemetry, _phantom: PhantomData }
 	}
 }
 
@@ -115,10 +110,7 @@ where
 			block.header.digest().logs(),
 		)
 		.map_err(|e| {
-			format!(
-				"Failed to retrieve inherent digest from header at {:?}: {}",
-				parent_hash, e
-			)
+			format!("Failed to retrieve inherent digest from header at {:?}: {}", parent_hash, e)
 		})?;
 
 		// Extract seal and pre-digest.
@@ -139,11 +131,7 @@ where
 		let pre_seal_hash = block.header.hash();
 
 		match &pre_digest {
-			SafrolePreDigest::Fallback {
-				authority_index,
-				vrf_signature,
-				..
-			} => {
+			SafrolePreDigest::Fallback { authority_index, vrf_signature, .. } => {
 				let idx = *authority_index as usize;
 				let authority = authorities.get(idx).ok_or_else(|| {
 					format!("Authority index {} out of bounds (len {})", idx, authorities.len())
@@ -157,11 +145,8 @@ where
 				}
 
 				// Verify the VRF proof matches this authority for this slot.
-				let epoch_randomness = self
-					.client
-					.runtime_api()
-					.epoch_randomness(parent_hash)
-					.unwrap_or([0u8; 32]);
+				let epoch_randomness =
+					self.client.runtime_api().epoch_randomness(parent_hash).unwrap_or([0u8; 32]);
 
 				let vrf_input_data = [
 					b"jam_fallback_seal".as_slice(),
@@ -190,8 +175,7 @@ where
 					fallback_hash[1],
 					fallback_hash[2],
 					fallback_hash[3],
-				]) as usize
-					% authorities.len();
+				]) as usize % authorities.len();
 
 				if expected_idx != idx {
 					return Err(format!(
@@ -200,10 +184,7 @@ where
 					));
 				}
 			},
-			SafrolePreDigest::Ticket {
-				ticket_index,
-				..
-			} => {
+			SafrolePreDigest::Ticket { ticket_index, .. } => {
 				// Verify ticket mode: the ticket at this index must exist.
 				let tickets = self
 					.client
@@ -215,11 +196,7 @@ where
 					})?;
 
 				let _ticket = tickets.get(*ticket_index as usize).ok_or_else(|| {
-					format!(
-						"Ticket index {} out of bounds (len {})",
-						ticket_index,
-						tickets.len()
-					)
+					format!("Ticket index {} out of bounds (len {})", ticket_index, tickets.len())
 				})?;
 
 				// The seal reveals the author's identity. Verify the seal is valid
@@ -247,10 +224,7 @@ where
 
 			let inherent_data_providers = self
 				.create_inherent_data_providers
-				.create_inherent_data_providers(
-					parent_hash,
-					(block_slot, inherent_digest_value),
-				)
+				.create_inherent_data_providers(parent_hash, (block_slot, inherent_digest_value))
 				.await
 				.map_err(|e| format!("Error creating inherent data providers: {}", e))?;
 
@@ -300,9 +274,7 @@ where
 /// Parameters for creating the Safrole import queue.
 pub struct SafroleImportQueueParams<'a, Block: BlockT, I, C, S, CIDP> {
 	pub block_import: I,
-	pub justification_import: Option<
-		sc_consensus::BoxJustificationImport<Block>,
-	>,
+	pub justification_import: Option<sc_consensus::BoxJustificationImport<Block>>,
 	pub client: Arc<C>,
 	pub create_inherent_data_providers: CIDP,
 	pub spawner: &'a S,
@@ -343,17 +315,8 @@ where
 		+ 'static,
 	ID: InherentDigest + Send + Sync + 'static,
 {
-	let verifier = SafroleVerifier::<_, _, _, ID>::new(
-		client,
-		create_inherent_data_providers,
-		telemetry,
-	);
+	let verifier =
+		SafroleVerifier::<_, _, _, ID>::new(client, create_inherent_data_providers, telemetry);
 
-	Ok(BasicQueue::new(
-		verifier,
-		Box::new(block_import),
-		justification_import,
-		spawner,
-		registry,
-	))
+	Ok(BasicQueue::new(verifier, Box::new(block_import), justification_import, spawner, registry))
 }

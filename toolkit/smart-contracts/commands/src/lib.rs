@@ -191,7 +191,7 @@ mod test {
 
 	use hex_literal::hex;
 	use sidechain_domain::{
-		SafrolePublicKey, CandidateKey, CandidateKeys, GrandpaPublicKey, PermissionedCandidateData,
+		CandidateKey, CandidateKeys, GrandpaPublicKey, PermissionedCandidateData, SafrolePublicKey,
 		SidechainPublicKey,
 	};
 

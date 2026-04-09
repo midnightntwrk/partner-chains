@@ -63,7 +63,9 @@ pub fn select_authorities_with_weights<
 /// For registered candidates: weight = StakeDelegation (Lovelace).
 /// For permissioned candidates: weight = 1.
 /// Returns `(key_type_id_bytes, key_bytes, weight)` triples.
-fn extract_candidate_key_weights(input: &AuthoritySelectionInputs) -> Vec<(sp_runtime::KeyTypeId, Vec<u8>, u64)> {
+fn extract_candidate_key_weights(
+	input: &AuthoritySelectionInputs,
+) -> Vec<(sp_runtime::KeyTypeId, Vec<u8>, u64)> {
 	let mut weights = Vec::new();
 
 	for candidate in &input.registered_candidates {

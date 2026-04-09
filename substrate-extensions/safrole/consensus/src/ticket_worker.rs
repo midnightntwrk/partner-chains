@@ -4,8 +4,7 @@
 //! generates tickets once per epoch for each local authority key.
 
 use pallet_safrole::{
-	EpochIndex, Ticket, TicketEnvelope, KEY_TYPE, MAX_RING_SIZE,
-	SafroleApi as SafroleRuntimeApi,
+	EpochIndex, KEY_TYPE, MAX_RING_SIZE, SafroleApi as SafroleRuntimeApi, Ticket, TicketEnvelope,
 };
 use parity_scale_codec::{Decode, Encode};
 use sc_client_api::AuxStore;
@@ -94,10 +93,7 @@ impl sp_inherents::InherentDataProvider for RingVerifierKeyProvider {
 		inherent_data: &mut sp_inherents::InherentData,
 	) -> Result<(), sp_inherents::Error> {
 		if let Some(ref key_bytes) = self.key_bytes {
-			inherent_data.put_data(
-				pallet_safrole::RING_VERIFIER_KEY_INHERENT_ID,
-				key_bytes,
-			)?;
+			inherent_data.put_data(pallet_safrole::RING_VERIFIER_KEY_INHERENT_ID, key_bytes)?;
 		}
 		Ok(())
 	}
@@ -176,8 +172,7 @@ pub async fn run_ticket_worker<B, C, P>(
 			}
 
 			let prover = ring_ctx.prover(&raw_pks, idx);
-			let raw_key =
-				bandersnatch::Public::from_raw(raw_pub.try_into().expect("32 bytes"));
+			let raw_key = bandersnatch::Public::from_raw(raw_pub.try_into().expect("32 bytes"));
 
 			// Generate tickets for each attempt.
 			// TicketsPerValidator is a runtime constant; hardcode a reasonable upper bound.
@@ -188,8 +183,7 @@ pub async fn run_ticket_worker<B, C, P>(
 				vrf_input_data.extend_from_slice(&epoch_randomness);
 				vrf_input_data.push(attempt);
 
-				let vrf_sign_data =
-					bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
+				let vrf_sign_data = bandersnatch::vrf::VrfSignData::new(&vrf_input_data, b"");
 
 				let Ok(Some(ring_sig)) = keystore.bandersnatch_ring_vrf_sign(
 					KEY_TYPE,
@@ -225,14 +219,12 @@ pub async fn run_ticket_worker<B, C, P>(
 				let encoded_xt = (extrinsic_builder)(envelope);
 				let opaque_xt = B::Extrinsic::decode(&mut &encoded_xt[..]);
 				match opaque_xt {
-					Ok(xt) => {
-						match pool.submit_one(best, TransactionSource::Local, xt).await {
-							Ok(_) => submitted += 1,
-							Err(e) => log::warn!(
-								target: "safrole",
-								"Failed to submit ticket to pool: {e}"
-							),
-						}
+					Ok(xt) => match pool.submit_one(best, TransactionSource::Local, xt).await {
+						Ok(_) => submitted += 1,
+						Err(e) => log::warn!(
+							target: "safrole",
+							"Failed to submit ticket to pool: {e}"
+						),
 					},
 					Err(e) => log::warn!(
 						target: "safrole",

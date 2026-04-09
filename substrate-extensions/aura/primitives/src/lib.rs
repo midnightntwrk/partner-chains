@@ -3,5 +3,5 @@
 pub use sp_partner_chains_consensus_common::block_proposal;
 pub use sp_partner_chains_consensus_common::inherent_digest;
 
-pub use sp_partner_chains_consensus_common::inherent_digest::InherentDigest;
 pub use sp_partner_chains_consensus_common::CurrentSlotProvider;
+pub use sp_partner_chains_consensus_common::inherent_digest::InherentDigest;

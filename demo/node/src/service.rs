@@ -8,8 +8,8 @@ use partner_chains_db_sync_data_sources::McFollowerMetrics;
 use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
 use partner_chains_demo_runtime::{self, RuntimeApi, opaque::Block};
 use sc_client_api::BlockBackend;
-use sc_consensus_slots::SlotProportion;
 use sc_consensus_grandpa::{GrandpaPruningFilter, SharedVoterState};
+use sc_consensus_slots::SlotProportion;
 pub use sc_executor::WasmExecutor;
 use sc_partner_chains_consensus_safrole::import_queue as safrole_import_queue;
 use sc_service::{Configuration, TaskManager, WarpSyncConfig, error::Error as ServiceError};
@@ -157,30 +157,25 @@ pub fn new_partial(
 		.map_err(|err| ServiceError::Application(err.into()))?;
 	let inherent_config = CreateInherentDataConfig::new(epoch_config, sc_slot_config, time_source);
 
-	let import_queue = safrole_import_queue::import_queue::<
-		_,
-		_,
-		_,
-		_,
-		_,
-		McHashInherentDigest,
-	>(safrole_import_queue::SafroleImportQueueParams {
-		block_import: grandpa_block_import.clone(),
-		justification_import: Some(Box::new(grandpa_block_import.clone())),
-		client: client.clone(),
-		create_inherent_data_providers: VerifierCIDP::new(
-			inherent_config,
-			client.clone(),
-			data_sources.mc_hash.clone(),
-			data_sources.authority_selection.clone(),
-			data_sources.block_participation.clone(),
-			data_sources.governed_map.clone(),
-			data_sources.bridge.clone(),
-		),
-		spawner: &task_manager.spawn_essential_handle(),
-		registry: config.prometheus_registry(),
-		telemetry: telemetry.as_ref().map(|x| x.handle()),
-	})?;
+	let import_queue = safrole_import_queue::import_queue::<_, _, _, _, _, McHashInherentDigest>(
+		safrole_import_queue::SafroleImportQueueParams {
+			block_import: grandpa_block_import.clone(),
+			justification_import: Some(Box::new(grandpa_block_import.clone())),
+			client: client.clone(),
+			create_inherent_data_providers: VerifierCIDP::new(
+				inherent_config,
+				client.clone(),
+				data_sources.mc_hash.clone(),
+				data_sources.authority_selection.clone(),
+				data_sources.block_participation.clone(),
+				data_sources.governed_map.clone(),
+				data_sources.bridge.clone(),
+			),
+			spawner: &task_manager.spawn_essential_handle(),
+			registry: config.prometheus_registry(),
+			telemetry: telemetry.as_ref().map(|x| x.handle()),
+		},
+	)?;
 
 	Ok(sc_service::PartialComponents {
 		client,
@@ -398,9 +393,11 @@ pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as 
 
 		// the Safrole authoring task is considered essential, i.e. if it
 		// fails we take down the service with it.
-		task_manager
-			.spawn_essential_handle()
-			.spawn_blocking("safrole", Some("block-authoring"), safrole);
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"safrole",
+			Some("block-authoring"),
+			safrole,
+		);
 
 		// Spawn ticket generation worker — generates ring-VRF tickets at epoch boundaries.
 		let ticket_extrinsic_builder: sc_partner_chains_consensus_safrole::ticket_worker::TicketExtrinsicBuilder =
@@ -414,21 +411,20 @@ pub async fn new_full_base<Network: sc_network::NetworkBackend<Block, <Block as 
 				partner_chains_demo_runtime::UncheckedExtrinsic::new_bare(call).encode()
 			});
 
-		let ticket_worker = sc_partner_chains_consensus_safrole::ticket_worker::run_ticket_worker::<
-			Block,
-			_,
-			_,
-		>(
-			client.clone(),
-			transaction_pool.clone(),
-			keystore_container.keystore(),
-			partner_chains_demo_runtime::SLOT_DURATION,
-			ticket_extrinsic_builder,
-		);
+		let ticket_worker =
+			sc_partner_chains_consensus_safrole::ticket_worker::run_ticket_worker::<Block, _, _>(
+				client.clone(),
+				transaction_pool.clone(),
+				keystore_container.keystore(),
+				partner_chains_demo_runtime::SLOT_DURATION,
+				ticket_extrinsic_builder,
+			);
 
-		task_manager
-			.spawn_essential_handle()
-			.spawn_blocking("safrole-tickets", Some("block-authoring"), ticket_worker);
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"safrole-tickets",
+			Some("block-authoring"),
+			ticket_worker,
+		);
 	}
 
 	if enable_grandpa {

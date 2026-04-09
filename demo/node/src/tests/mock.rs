@@ -3,10 +3,10 @@
 use crate::inherent_data::CreateInherentDataConfig;
 use crate::tests::runtime_api_mock::TestApi;
 use hex_literal::hex;
-use sp_consensus_slots::SlotDuration;
 use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sidechain_domain::*;
 use sidechain_slots::{ScSlotConfig, SlotsPerEpoch};
+use sp_consensus_slots::SlotDuration;
 use sp_core::offchain::{Duration, Timestamp};
 use std::sync::Arc;
 

@@ -17,9 +17,9 @@ pub fn authority_keys(
 	grandpa_pub_key: &str,
 	sidechain_pub_key: &str,
 ) -> AuthorityKeys {
-	let safrole_pk = pallet_safrole::AuthorityId::from(
-		bandersnatch::Public::from_raw(from_hex(safrole_pub_key).unwrap().try_into().unwrap()),
-	);
+	let safrole_pk = pallet_safrole::AuthorityId::from(bandersnatch::Public::from_raw(
+		from_hex(safrole_pub_key).unwrap().try_into().unwrap(),
+	));
 	let grandpa_pk =
 		ed25519::Public::from_raw(from_hex(grandpa_pub_key).unwrap().try_into().unwrap());
 	let sidechain_pk = sidechain_domain::SidechainPublicKey(from_hex(sidechain_pub_key).unwrap());

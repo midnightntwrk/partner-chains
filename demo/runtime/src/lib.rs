@@ -438,11 +438,15 @@ impl pallet_session_validator_management::Config for Runtime {
 		use sp_runtime::key_types::GRANDPA;
 
 		let result = select_authorities_with_weights::<
-			opaque::cross_chain_app::Public, SessionKeys, MaxValidators,
+			opaque::cross_chain_app::Public,
+			SessionKeys,
+			MaxValidators,
 		>(Sidechain::genesis_utxo(), input, sidechain_epoch)?;
 
 		// Populate the GRANDPA weight map from candidate key data.
-		let grandpa_weights = result.key_weights.iter()
+		let grandpa_weights = result
+			.key_weights
+			.iter()
 			.filter(|(key_type, _, _)| *key_type == GRANDPA)
 			.filter_map(|(_, bytes, weight)| {
 				let key: [u8; 32] = bytes.as_slice().try_into().ok()?;
